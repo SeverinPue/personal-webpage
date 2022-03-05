@@ -1,0 +1,69 @@
+$color-foreground: #31636b;
+$color-background-arrow: #bbbdaf;
+#background {
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+
+$margin-content: 30px;
+
+.content{
+
+  position: absolute;
+  width: calc(100vw - #{$margin-content * 4});
+  height:calc(100vh - #{$margin-content * 4});
+  color: #000000;
+  display: grid;
+  top: 0;
+  left: 0;
+
+  grid-template-columns: 32% 32% 32%;
+
+}
+#Über_mich{
+  grid-column-start: 2;
+  grid-column-end: 3;
+}
+#place_holder{
+  grid-column-start: 3;
+  grid-column-end: 4;
+}
+
+.div_background{
+  margin: $margin-content;
+  padding: $margin-content;
+  background-color: #dfd6c0d4;
+
+}
+
+
+#arrow{
+
+  grid-column-start: 1;
+  grid-column-end: 4;
+  position: relative;
+
+}
+
+#dreieck {
+
+  position: absolute;
+  right: 0;
+
+  width: 0;
+  height: 0;
+  border-left: 50px solid transparent;
+  border-right: 50px solid transparent;
+  border-bottom: 100px solid $color-background-arrow;
+  transform: rotate(90deg);
+
+}
+#rechteck{
+  margin: 25px;
+  width: calc(100% - 75px);
+  background-color:$color-background-arrow;
+  height: 50px;
+}
+

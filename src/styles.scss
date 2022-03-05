@@ -1,0 +1,30 @@
+/* You can add global styles to this file, and also import other style files */
+
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500&display=swap');
+
+$color-foreground: #31636b;
+$color-background: #becdcf;
+html, body {
+  margin: 0;
+  padding: 20px;
+  background: $color-background;
+  font-family: 'Open Sans', sans-serif;
+}
+p{
+  color: $color-foreground;
+}
+h1{
+  color: #bd4913d1;
+}
+.center {
+  display: grid;
+  justify-content: center;
+  text-align: center;
+}
+
+a {
+  font-weight: bold;
+  text-decoration: none;
+  color: #094456
+}
+
