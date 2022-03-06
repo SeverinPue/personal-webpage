@@ -29,27 +29,8 @@ jobs:
       - name: Build
         run: npm run build -- --prod
 
-      # saves the build mock_data in an artifact
-      - name: Archive build
-        if: success()
-        uses: actions/upload-artifact@v1
-        with:
-          name: deploy_dist
-          path: dist/personal-webpage
-
-  deploy:
-    name: deploy to gh-pages branch
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-
-      - uses: actions/checkout@v2.1.0
-        with:
-          fetch-depth: 2
-
       - name: Deploy 🚀 to GitHub Pages Branch
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist/personal-webpage
+          publish_dir: dist/personal-webpage
