@@ -25,6 +25,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+        # builds the angular app (prod version)
+      - name: Build
+        run: npm run build -- --prod
+
       # saves the build mock_data in an artifact
       - name: Archive build
         if: success()
