@@ -78,6 +78,14 @@ export class StartseiteComponent implements OnInit {
   }
 
 
+// When the user clicks on div, open the popup
+  openPopupWithID(elementID: string) {
+    let popup = document.getElementById(elementID);
+
+    if (popup !== null)
+      popup.classList.toggle("show");
+  }
+
 }
 
 
@@ -147,6 +155,8 @@ export class Point {
       context.stroke();
 
     }
+
   }
 
 }
+
