@@ -4,13 +4,14 @@
 
   <div id="Über_mich" class="div_background">
     <h3>Über mich</h3>
+    <span>
     Mein Name ist Severin Püntener. Das Thema Informatik interessiert mich schon seit längerem. Sicher hat dazu auch
     mein Vater, welcher Informatiker ist und mein Bruder, welcher an der ETH Informatik studiert mit beeinflusst.
     Bis jetzt habe ich kleinere Scratch, Java, HTML und Lego Mindstorms Projekte gemacht. Aktuell bin ich in der Sek A,
     welche ich im Sommer 2023 abschliessen werde.
     Ich bin sehr gut im selbstständigen und konzentrierten Arbeiten. Ich lasse mich auch nicht ablenken und bleibe immer
     geduldig dran. In der Schule sind Informatik und Mathe meinen Lieblingsfächer.
-
+    </span>
   </div>
 <div id="place_holder" >
 
@@ -19,21 +20,32 @@
   <div id="arrow">
     <div id="dreieck">
     </div>
-    <div id="rechteck">
+    <div id="rechteck" class="pupup_position">
+
       <div id="Vergangenheit" class="popup" (click)="openPopupWithID('myPopup1')">Vergangenheit
-        <span class="popuptext" id="myPopup1">iquyam erat, sed diam voluptua. At vero eos et accusam et justo duo
-          dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanc</span>
+        <span class="popuptext" id="myPopup1">
+          In den letzten Monaten habe ich mich intensiv mit meiner Berufswahl auseinandergesetzt Ich konnte in
+          verschiedenen Berufen Eindrücke sammeln. Während Schnupperlehren als Apllikationsentwickler wurde mir klar,
+          dass diesesn spannenden Beruf zu erlernen möchte.
+        </span>
       </div>
+
       <div id="Gegenwart" class="popup" (click)="openPopupWithID('myPopup2')">Gegenwart
-      <span class="popuptext" id="myPopup2">Ich gehe in die <a href="https://szn.ch/">Schule Zürich Nord</a> in die
+        <span class="popuptext" id="myPopup2">
+        Ich gehe in die <a href="https://szn.ch/">Schule Zürich Nord</a> in die
         Sek A In meiner Freizeit gehe ich in die <a href="https://zh11.ch/">Cevi</a> und bin dort Gruppenleiter.
-        Ich bewege mich sehr gerne</span>
-    </div>
+        Ich bewege mich sehr gerne
+        </span>
+      </div>
+
       <div id="Zukunft" class="popup" (click)="openPopupWithID('myPopup3')">Zukunft
-      <span class="popuptext" id="myPopup3">Im Sommer 2023 möchte ich eine Lehre als Applikationsentwickler EFZ
+        <span class="popuptext" id="myPopup3">
+        Im Sommer 2023 möchte ich eine Lehre als Applikationsentwickler EFZ
         begingen, in einer Firma welche spannende Softwareprojekte macht. Ich freue mich auf die Arbeit am Computer,
-        darauf mit logischem Denken Probleme lösen zu können und ein Teil von einem Team zu sein.</span>
+        darauf mit logischem Denken Probleme lösen zu können und ein Teil von einem Team zu sein.
+        </span>
     </div>
+
     </div>
   </div>
 

@@ -11,14 +11,32 @@ export class StartseiteComponent implements OnInit {
   @ViewChild('backgroundCanvas', {static: true})
   private canvasRef!: ElementRef<HTMLCanvasElement>;
   private context!: CanvasRenderingContext2D;
-  private x_max = window.outerWidth;
-  private y_max = window.outerHeight;
+  private readonly x_max;
+  private readonly y_max;
   private points: Point[] = [];
 
 
-  private readonly NUMBER_OF_POINTS = 150;
+  private readonly NUMBER_OF_POINTS;
 
   private readonly SPEED = 1.5;
+
+  constructor() {
+
+
+    if (window.outerWidth < 1000) {
+      this.x_max = window.outerWidth + 200;
+      this.y_max = window.outerHeight + 200;
+      this.NUMBER_OF_POINTS = 60;
+    } else {
+
+      this.x_max = window.outerWidth;
+      this.y_max = window.outerHeight;
+      this.NUMBER_OF_POINTS = 150;
+
+
+    }
+
+  }
 
   ngOnInit(): void {
 
@@ -28,8 +46,8 @@ export class StartseiteComponent implements OnInit {
     this.context = ctx;
 
 
-    this.canvasRef.nativeElement.height = window.outerHeight
-    this.canvasRef.nativeElement.width = window.outerWidth
+    this.canvasRef.nativeElement.height = this.y_max;
+    this.canvasRef.nativeElement.width = this.x_max;
     // Draw on the canvas
     this.context.fillStyle = "#FF0000";
 
@@ -40,17 +58,17 @@ export class StartseiteComponent implements OnInit {
 
     while (counter < this.NUMBER_OF_POINTS) {
       var min_spawn_x = 1
-      var max_spawn_x = window.outerWidth
+      var max_spawn_x = this.x_max
       var x = (Math.random() * (max_spawn_x - min_spawn_x)) + min_spawn_x;
 
       var min_spawn_y = 1
-      var max_spawn_y = window.outerHeight
+      var max_spawn_y = this.y_max
       var y = (Math.random() * (max_spawn_y - min_spawn_y)) + min_spawn_y;
 
       var min_size = 2;
       var max_size = 5;
       var size = (Math.random() * (max_size - min_size)) + min_size;
-      const point1 = new Point(x, y, size, Math.random() * this.SPEED - this.SPEED / 2, Math.random() * this.SPEED - this.SPEED / 2);
+      const point1 = new Point(this.x_max, this.y_max, x, y, size, Math.random() * this.SPEED - this.SPEED / 2, Math.random() * this.SPEED - this.SPEED / 2);
       this.points.push(point1);
 
       counter += 1
@@ -91,15 +109,15 @@ export class StartseiteComponent implements OnInit {
 
 export class Point {
 
-  private readonly x_max: number;
-  private readonly y_max: number;
 
-  constructor(public x: number, public y: number, public size: number, public dx: number, public dy: number) {
-
-    this.x_max = window.outerWidth;
-    this.y_max = window.outerHeight;
-
-
+  constructor(
+    private readonly x_max: number,
+    private readonly y_max: number,
+    public x: number,
+    public y: number,
+    public size: number,
+    public dx: number,
+    public dy: number) {
   }
 
   draw(context: CanvasRenderingContext2D): void {

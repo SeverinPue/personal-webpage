@@ -1,9 +1,21 @@
 $color-foreground: #31636b;
 $color-background-arrow: #bbbdaf;
+$iphone: 1000px;
+
+
 #background {
   position: fixed;
   top: 0;
   left: 0;
+
+  @media screen and (max-width: 1000px) {
+
+    margin: -100px;
+    padding: 100px;
+    width: calc(100vw + 200px);
+    height: calc(100vh + 200px);
+
+  }
 }
 
 
@@ -18,34 +30,48 @@ $margin-content: 30px;
   display: grid;
   top: 0;
   left: 0;
+  align-items: start;
+  grid-template-columns: 33% 33% 33%;
 
-  grid-template-columns: 32% 32% 32%;
+  @media screen  and (max-width: 1000px) {
+    grid-template-columns: 100%;
+    width: calc(100vw);
+    height: calc(100vh);
+  }
 
 }
 #Über_mich{
-  grid-column-start: 1;
-  grid-column-end: 4;
+  grid-column-start: 2;
+  grid-column-end: 3;
+  background-color: $color-background-arrow;
+  color: #094456;
+  @media screen  and (max-width: 1000px) {
+    grid-column-start: 1;
+    grid-column-end: 2;
+    background-color: $color-background-arrow;
+    margin-top: 100px;
+  }
+
 }
-#place_holder{
-  grid-column-start: 3;
-  grid-column-end: 4;
-}
+
 
 .div_background{
-  margin: $margin-content;
   padding: $margin-content;
   background-color: #dfd6c0d4;
-
 }
 
-
+//Arrow
 #arrow{
 
   grid-column-start: 1;
   grid-column-end: 4;
   position: relative;
 
-}
+  @media screen  and (max-width: 1000px) {
+
+  }
+
+  }
 
 #dreieck {
 
@@ -69,9 +95,7 @@ $margin-content: 30px;
 
 
 
-
-
-/* Popup container */
+/* Popup container*/
 .popup {
   position: relative;
   display: inline-block;
@@ -124,24 +148,10 @@ $margin-content: 30px;
   to {opacity:1 ;}
 }
 
-#Vergangenheit{
-  position: relative;
-  left: 70px;
-  top: 10px;
-
-}
-
-#Gegenwart{
-  position: relative;
-  left: 200px;
-  top: 10px;
-}
-
-#Zukunft{
-  position: relative;
-  left: 500px;
-  top: 10px;
-
+.pupup_position{
+  display: grid;
+  grid-template-columns: 33% 33% 33%;
+  text-align: center;
 }
 
 
@@ -155,14 +165,17 @@ $margin-content: 30px;
   cursor: pointer;
   -webkit-user-select: none;
   -moz-user-select: none;
+  -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
+  grid-template-columns: 33% 33% 33%;
+  line-height: 50px;
 }
 
 /* The actual popup */
 .popup .popuptext {
   visibility: hidden;
-  width: 160px;
+  width: 400px;
   background-color: #555;
   color: #fff;
   text-align: center;
@@ -173,19 +186,10 @@ $margin-content: 30px;
   bottom: 125%;
   left: 50%;
   margin-left: -80px;
+  line-height: 1.35rem;
 }
 
-/* Popup arrow */
-.popup .popuptext::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  margin-left: -5px;
-  border-width: 5px;
-  border-style: solid;
-  border-color: #555 transparent transparent transparent;
-}
+
 
 /* Toggle this class - hide and show the popup */
 .popup .show {
