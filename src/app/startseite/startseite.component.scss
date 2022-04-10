@@ -21,31 +21,35 @@ $iphone: 1000px;
 
 $margin-content: 30px;
 
-.content{
+.content {
 
   position: absolute;
   width: calc(100vw - #{$margin-content * 4});
-  height:calc(100vh - #{$margin-content * 4});
+  height: calc(100vh - #{$margin-content * 4});
   color: #000000;
   display: grid;
   top: 0;
   left: 0;
   align-items: start;
   grid-template-columns: 33% 33% 33%;
+  overflow-y: auto;
+  overflow-x: hidden;
 
-  @media screen  and (max-width: 1000px) {
+  @media screen and (max-width: 1000px) {
     grid-template-columns: 100%;
     width: calc(100vw);
     height: calc(100vh);
+    position: fixed;
   }
 
 }
-#Über_mich{
+
+#Über_mich {
   grid-column-start: 2;
   grid-column-end: 3;
   background-color: $color-background-arrow;
-  color: #094456;
-  @media screen  and (max-width: 1000px) {
+  color: #000;
+  @media screen and (max-width: 1000px) {
     grid-column-start: 1;
     grid-column-end: 2;
     background-color: $color-background-arrow;
@@ -55,156 +59,154 @@ $margin-content: 30px;
 }
 
 
-.div_background{
+.div_background {
   padding: $margin-content;
   background-color: #dfd6c0d4;
+  margin: 25px 0;
 }
 
-//Arrow
-#arrow{
 
-  grid-column-start: 1;
-  grid-column-end: 4;
-  position: relative;
+// Style only for big screens (arrow and other stuff)
+@media screen and (min-width: 1000px) {
 
-  @media screen  and (max-width: 1000px) {
+  #arrow .div_background, #arrow h3 {
+    margin: 0;
+    padding: 0;
+  }
+
+  #arrow h3 {
+    transition-duration: 100ms;
+  }
+
+  #arrow h3:hover {
+
+    background-color: #9b9585;
+    font-size: 1.26em;
+    transition-duration: 100ms;
 
   }
 
+  //Arrow
+  #arrow {
+
+    grid-column-start: 1;
+    grid-column-end: 4;
+    position: relative;
+
+
   }
 
-#dreieck {
+  #dreieck {
 
-  position: absolute;
-  right: 0;
+    position: absolute;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-left: 50px solid transparent;
+    border-right: 50px solid transparent;
+    border-bottom: 100px solid $color-background-arrow;
+    transform: rotate(90deg);
 
-  width: 0;
-  height: 0;
-  border-left: 50px solid transparent;
-  border-right: 50px solid transparent;
-  border-bottom: 100px solid $color-background-arrow;
-  transform: rotate(90deg);
-
-}
-#rechteck{
-  margin: 25px;
-  width: calc(100% - 75px);
-  background-color:$color-background-arrow;
-  height: 50px;
-}
-
+  }
+  #rechteck {
+    margin: 25px;
+    width: calc(100% - 75px);
+    background-color: $color-background-arrow;
+    height: 50px;
+  }
 
 
-/* Popup container*/
-.popup {
-  position: relative;
-  display: inline-block;
-  cursor: pointer;
-}
-
-/* The actual popup (appears on top) */
-.popup .popuptext {
-  visibility: hidden;
-  width: 255px;
-  background-color: #555;
-  color: #fff;
-  text-align: center;
-  border-radius: 6px;
-  padding: 8px 0;
-  position: absolute;
-  z-index: 1;
-  bottom: 125%;
-  left: 50%;
-  margin-left: -80px;
-}
-
-/* Popup arrow */
-.popup .popuptext::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  margin-left: -5px;
-  border-width: 5px;
-  border-style: solid;
-  border-color: #555 transparent transparent transparent;
-}
-
-/* Toggle this class when clicking on the popup container (hide and show the popup) */
-.popup .show {
-  visibility: visible;
-  -webkit-animation: fadeIn 1s;
-  animation: fadeIn 1s
-}
-
-/* Add animation (fade in the popup) */
-@-webkit-keyframes fadeIn {
-  from {opacity: 0;}
-  to {opacity: 1;}
-}
-
-@keyframes fadeIn {
-  from {opacity: 0;}
-  to {opacity:1 ;}
-}
-
-.pupup_position{
-  display: grid;
-  grid-template-columns: 33% 33% 33%;
-  text-align: center;
-}
+  /* Popup container*/
+  .popup {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+  }
 
 
+  .pupup_position {
+    display: grid;
+    grid-template-columns: 33% 33% 33%;
+    text-align: center;
+  }
 
 
+  /* Popup container - can be anything you want */
+  .popup {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    grid-template-columns: 33% 33% 33%;
+    line-height: 50px;
+  }
 
-/* Popup container - can be anything you want */
-.popup {
-  position: relative;
-  display: inline-block;
-  cursor: pointer;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  grid-template-columns: 33% 33% 33%;
-  line-height: 50px;
-}
-
-/* The actual popup */
-.popup .popuptext {
-  visibility: hidden;
-  width: 400px;
-  background-color: #555;
-  color: #fff;
-  text-align: center;
-  border-radius: 6px;
-  padding: 8px 0;
-  position: absolute;
-  z-index: 1;
-  bottom: 125%;
-  left: 50%;
-  margin-left: -80px;
-  line-height: 1.35rem;
-}
+  /* The actual popup */
+  .popup .popuptext {
+    visibility: hidden;
+    width: 400px;
+    background-color: $color-background-arrow;
+    color: #000;
+    text-align: center;
+    border-radius: 6px;
+    padding: 8px 0;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    line-height: 1.35rem;
+  }
 
 
+  /* Toggle this class - hide and show the popup */
+  .popup .show {
+    visibility: visible;
+    -webkit-animation: fadeIn 1s;
+    animation: fadeIn 1s;
 
-/* Toggle this class - hide and show the popup */
-.popup .show {
-  visibility: visible;
-  -webkit-animation: fadeIn 1s;
-  animation: fadeIn 1s;
-}
 
-/* Add animation (fade in the popup) */
-@-webkit-keyframes fadeIn {
-  from {opacity: 0;}
-  to {opacity: 1;}
-}
+    // makes popup full screen...
+    position: fixed;
+    top: 50px;
+    left: 50px;
+    height: calc(100vh - 100px);
+    width: calc(100vw - 100px);
 
-@keyframes fadeIn {
-  from {opacity: 0;}
-  to {opacity:1 ;}
+
+    display: grid;
+    text-align: center;
+    align-items: center;
+
+    span {
+
+      margin: auto;
+      max-width: 500px;
+
+    }
+
+
+  }
+
+  /* Add animation (fade in the popup) */
+  @-webkit-keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 }
