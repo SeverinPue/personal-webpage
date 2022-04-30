@@ -3,6 +3,8 @@ $color-background-arrow: #bbbdaf;
 $iphone: 1000px;
 
 
+
+
 #background {
   position: fixed;
   top: 0;
@@ -41,7 +43,6 @@ $margin-content: 30px;
   @media screen and (max-width: 1000px) {
     grid-template-columns: 100%;
     width: calc(100vw);
-    height: calc(100vh);
     position: fixed;
   }
 
@@ -67,6 +68,7 @@ $margin-content: 30px;
   background-color: #dfd6c0d4;
   margin: 25px 0;
 }
+
 
 
 // Style only for big screens (arrow and other stuff)
