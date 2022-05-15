@@ -48,7 +48,7 @@ $margin-content: 30px;
 
 }
 
-#Über_mich {
+#ueber_mich {
   grid-column-start: 2;
   grid-column-end: 3;
   background-color: $color-background-arrow;
@@ -153,7 +153,7 @@ $margin-content: 30px;
   /* The actual popup */
   .popup .popuptext {
     visibility: hidden;
-    width: 400px;
+    width: 225px;
     background-color: $color-background-arrow;
     color: #000;
     text-align: center;
@@ -164,6 +164,12 @@ $margin-content: 30px;
     bottom: 125%;
     left: 50%;
     line-height: 1.35rem;
+
+    background-image: url("../../assets/Icons/Icon_Kreuz.png");
+    height: 225px;
+    background-repeat: no-repeat;
+    background-position: right top;
+    background-size: 30px;
   }
 
 
