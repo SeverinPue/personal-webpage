@@ -5,6 +5,7 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { StartseiteComponent } from './startseite/startseite.component';
 import { ZweiteSeiteComponent } from './zweite-seite/zweite-seite.component';
+import { UeberMichComponent } from './ueber-mich/ueber-mich.component';
 import { ErrorPageComponent } from './error-page/error-page.component';
 
 @NgModule({
@@ -12,6 +13,7 @@ import { ErrorPageComponent } from './error-page/error-page.component';
     AppComponent,
     StartseiteComponent,
     ZweiteSeiteComponent,
+    UeberMichComponent,
     ErrorPageComponent,
   ],
   imports: [

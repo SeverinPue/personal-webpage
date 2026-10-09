@@ -5,29 +5,28 @@ on:
       - master
 jobs:
   build:
-
     name: Build Angular App
-
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout 🛎️
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      # install Node (version should be the same as local, i.g. 14.x)
-      - name: Use Node 14.x
-        uses: actions/setup-node@v1
+      # install Node (matching local Node 18.x)
+      - name: Use Node 18.x
+        uses: actions/setup-node@v3
         with:
-          node-version: '14.x'
+          node-version: '18.x'
 
-      # installs all npm dependecies
+      # installs all npm dependencies
       - name: Install dependencies
         run: npm ci
 
-        # builds the angular app (prod version)
+      # builds the angular app (prod version) and generates 404.html for GitHub Pages subpage routing
       - name: Build
-        run: npm run build -- --prod
+        run: |
+          npm run build -- --prod
+          cp dist/personal-webpage/index.html dist/personal-webpage/404.html
 
       - name: Deploy 🚀 to GitHub Pages Branch
         uses: peaceiris/actions-gh-pages@v3
@@ -35,4 +34,3 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: dist/personal-webpage
           cname: severinpuentener.ch
-
