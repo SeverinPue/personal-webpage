@@ -230,14 +230,8 @@
 
       <!-- Quick Action Buttons -->
       <div class="hud-tools">
-        <button class="hud-btn" (click)="rotateMap(-45)" title="45° links drehen">
-          <span style="font-size: 1.1rem; line-height: 1;">↺</span>
-        </button>
-        <button class="hud-btn compass-btn" [class.rotated]="mapBearing !== 0" (click)="resetNorth()" title="Nach Norden ausrichten (0°)">
+        <button class="hud-btn compass-btn rotated" *ngIf="mapBearing !== 0" (click)="resetNorth()" title="Nach Norden ausrichten (0°)">
           <span class="compass-needle" [style.transform]="'rotate(' + (-mapBearing) + 'deg)'">🧭</span>
-        </button>
-        <button class="hud-btn" (click)="rotateMap(45)" title="45° rechts drehen">
-          <span style="font-size: 1.1rem; line-height: 1;">↻</span>
         </button>
         <button class="hud-btn" (click)="centerOnMe()" title="Zentrieren">
           <span>🎯</span>
@@ -255,11 +249,6 @@
           <span>👥</span>
         </button>
       </div>
-
-      <!-- OUT OF BOUNDS WARNING BANNER (Inside HUD flow so it NEVER overlaps with ping countdown!) -->
-      <div class="zone-alert-banner" *ngIf="isOutOfBounds">
-        ⚠️ ACHTUNG: Du bist außerhalb der Spielzone! Kehre zurück!
-      </div>
     </header>
 
     <!-- MAIN LEAFLET MAP -->
@@ -269,6 +258,11 @@
 
     <!-- BOTTOM TACTICAL STATUS BAR -->
     <footer class="game-hud-bottom">
+      <!-- OUT OF BOUNDS WARNING BANNER (Positioned cleanly at bottom center!) -->
+      <div class="zone-alert-banner" *ngIf="isOutOfBounds">
+        ⚠️ ACHTUNG: Du bist außerhalb der Spielzone! Kehre zurück!
+      </div>
+
       <div class="bottom-status-card">
         <!-- Detective View -->
         <ng-container *ngIf="myRole === 'DETECTIVE'">
