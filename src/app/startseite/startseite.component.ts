@@ -1,124 +1,35 @@
 import { Component, ElementRef, OnInit, OnDestroy, ViewChild, HostListener } from '@angular/core';
 
-export interface TimelineItem {
-  id: string;
-  category: 'vergangenheit' | 'gegenwart' | 'zukunft';
-  period: string;
-  badge: string;
-  title: string;
-  subtitle: string;
-  description: string;
-  highlights: string[];
-  link?: { text: string; url: string };
-  isOpen?: boolean;
-}
-
-export interface SkillGroup {
-  category: string;
-  skills: { name: string; level: string; icon?: string }[];
-}
-
 @Component({
   selector: 'app-startseite',
   templateUrl: './startseite.component.html',
   styleUrls: ['./startseite.component.scss']
 })
 export class StartseiteComponent implements OnInit, OnDestroy {
+
   @ViewChild('backgroundCanvas', { static: true })
   private canvasRef!: ElementRef<HTMLCanvasElement>;
   private context!: CanvasRenderingContext2D;
+  private x_max: number = 1000;
+  private y_max: number = 800;
+  private points: Point[] = [];
   private animationFrameId: number | null = null;
-  private points: ParticlePoint[] = [];
 
-  // Active filter for timeline
-  public activeTimelineFilter: 'all' | 'vergangenheit' | 'gegenwart' | 'zukunft' = 'all';
+  private readonly SPEED = 1.5;
 
-  // Timeline entries (updated to reflect current status)
-  public timelineItems: TimelineItem[] = [
-    {
-      id: 'item-gegenwart',
-      category: 'gegenwart',
-      period: 'Seit Sommer 2023 – Heute',
-      badge: 'Aktuell',
-      title: 'Ausbildung zum Applikationsentwickler EFZ',
-      subtitle: 'Informatiker Fachrichtung Applikationsentwicklung',
-      description: 'Aktuell absolviere ich mit Begeisterung meine Lehre als Applikationsentwickler EFZ. In der Praxis und Berufsschule vertiefe ich mein Wissen in moderner Software-Architektur, agilen Methoden und erstklassiger Code-Qualität.',
-      highlights: [
-        'Entwicklung von Frontend- & Backend-Lösungen (Angular, TypeScript, Java, C#, SQL)',
-        'Arbeit im Entwicklungsteam mit agilen Workflows & Git CI/CD',
-        'Ehrenamtlicher Gruppenleiter bei der Cevi Zürich 11'
-      ],
-      link: { text: 'Cevi Zürich 11 besuchen', url: 'https://zh11.ch/' },
-      isOpen: true
-    },
-    {
-      id: 'item-vergangenheit',
-      category: 'vergangenheit',
-      period: 'Bis Sommer 2023',
-      badge: 'Fundament',
-      title: 'Schulabschluss Sek A & Erste Programmierschritte',
-      subtitle: 'Schule Zürich Nord & gezielte Berufswahl',
-      description: 'Schon früh entdeckte ich durch meinen Vater (Informatiker) und meinen Bruder (ETH Informatik-Student) die Leidenschaft für IT. Nach ersten Projekten mit Scratch, Lego Mindstorms, Java und HTML/CSS sowie lehrreichen Schnupperlehren stand mein Entschluss fest, die Lehre als Applikationsentwickler anzutreten.',
-      highlights: [
-        'Erfolgreicher Abschluss Sekundarschule A an der Schule Zürich Nord',
-        'Schwerpunkte & Lieblingsfächer: Informatik und Mathematik',
-        'Frühe Erfahrungen mit Algorithmen, Robotik & Web-Basics'
-      ],
-      link: { text: 'Schule Zürich Nord', url: 'https://szn.ch/' },
-      isOpen: false
-    },
-    {
-      id: 'item-zukunft',
-      category: 'zukunft',
-      period: 'Ausblick',
-      badge: 'Ziele & Vision',
-      title: 'Lehrabschluss EFZ & Anspruchsvolle Software-Architektur',
-      subtitle: 'Full-Stack Engineering & Komplexe Systeme',
-      description: 'Mein Ziel ist es, meine Lehre mit Bestnoten abzuschliessen und mich kontinuierlich in modernen Cloud-Architekturen, Full-Stack Frameworks und skalierbaren Softwarelösungen weiterzubilden.',
-      highlights: [
-        'Erfolgreicher EFZ-Abschluss als Applikationsentwickler',
-        'Vertiefung in moderne Cloud- & Container-Technologien (Docker, Cloud Services)',
-        'Verantwortung für architektonisch anspruchsvolle Software-Module'
-      ],
-      isOpen: false
-    }
-  ];
+  // Active popup state for reliable open/close
+  public activePopup: string | null = null;
 
-  // Tech stack & skills
-  public skillGroups: SkillGroup[] = [
-    {
-      category: 'Frontend & Web',
-      skills: [
-        { name: 'Angular', level: 'Vertraut' },
-        { name: 'TypeScript', level: 'Erfahren' },
-        { name: 'JavaScript (ES6+)', level: 'Erfahren' },
-        { name: 'HTML5 & SCSS / CSS3', level: 'Erfahren' },
-        { name: 'Responsive UI / UX', level: 'Vertraut' }
-      ]
-    },
-    {
-      category: 'Backend & Sprachen',
-      skills: [
-        { name: 'Java', level: 'Vertraut' },
-        { name: 'C# / .NET', level: 'Grundlagen & Praxis' },
-        { name: 'SQL & relationale Datenbanken', level: 'Vertraut' },
-        { name: 'Python', level: 'Grundlagen' }
-      ]
-    },
-    {
-      category: 'Tools & Methoden',
-      skills: [
-        { name: 'Git & GitHub Workflows', level: 'Erfahren' },
-        { name: 'GitHub Actions / CI/CD', level: 'Vertraut' },
-        { name: 'VS Code & JetBrains IDEs', level: 'Erfahren' },
-        { name: 'Linux & Terminal', level: 'Vertraut' },
-        { name: 'Agiles Arbeiten (Scrum / Kanban)', level: 'Vertraut' }
-      ]
-    }
-  ];
+  constructor() {}
 
   ngOnInit(): void {
-    this.initCanvas();
+    const ctx = this.canvasRef.nativeElement.getContext('2d');
+    if (!ctx) throw new Error("Can't access canvas context!");
+    this.context = ctx;
+
+    this.updateCanvasDimensions();
+    this.initPoints();
+    this.startAnimation();
   }
 
   ngOnDestroy(): void {
@@ -130,99 +41,75 @@ export class StartseiteComponent implements OnInit, OnDestroy {
   @HostListener('window:resize')
   onResize(): void {
     if (this.canvasRef && this.canvasRef.nativeElement) {
-      this.initCanvasDimensions();
+      this.updateCanvasDimensions();
     }
   }
 
-  private initCanvas(): void {
-    const ctx = this.canvasRef.nativeElement.getContext('2d');
-    if (!ctx) return;
-    this.context = ctx;
-
-    this.initCanvasDimensions();
-    this.initPoints();
-    this.animate();
-  }
-
-  private initCanvasDimensions(): void {
-    const canvas = this.canvasRef.nativeElement;
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+  private updateCanvasDimensions(): void {
+    this.x_max = window.innerWidth;
+    this.y_max = window.innerHeight;
+    this.canvasRef.nativeElement.width = this.x_max;
+    this.canvasRef.nativeElement.height = this.y_max;
   }
 
   private initPoints(): void {
     this.points = [];
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const count = width < 768 ? 45 : 95;
+    const count = this.x_max < 1000 ? 55 : 120;
 
-    for (let i = 0; i < count; i++) {
-      const x = Math.random() * width;
-      const y = Math.random() * height;
-      const size = Math.random() * 2.5 + 1.5;
-      const dx = (Math.random() - 0.5) * 0.9;
-      const dy = (Math.random() - 0.5) * 0.9;
-      this.points.push(new ParticlePoint(x, y, size, dx, dy));
+    for (let counter = 0; counter < count; counter++) {
+      const x = Math.random() * this.x_max;
+      const y = Math.random() * this.y_max;
+      const size = Math.random() * 3 + 2;
+      const dx = (Math.random() - 0.5) * this.SPEED;
+      const dy = (Math.random() - 0.5) * this.SPEED;
+      this.points.push(new Point(this.x_max, this.y_max, x, y, size, dx, dy));
     }
   }
 
-  private animate = (): void => {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+  private startAnimation(): void {
+    const render = () => {
+      // Background teal
+      this.context.globalAlpha = 1;
+      this.context.fillStyle = "#094456";
+      this.context.fillRect(0, 0, this.x_max, this.y_max);
 
-    // Soft clear with slight fade
-    this.context.fillStyle = '#080d1a';
-    this.context.fillRect(0, 0, width, height);
+      // Move and draw points
+      this.points.forEach(pkt => {
+        pkt.updateBounds(this.x_max, this.y_max);
+        pkt.move();
+      });
 
-    // Update and draw points
-    for (let i = 0; i < this.points.length; i++) {
-      const p = this.points[i];
-      p.move(width, height);
-      p.draw(this.context);
+      this.context.globalAlpha = 0.85;
+      this.points.forEach(pkt => pkt.draw(this.context));
 
-      // Connect lines to nearby points
-      for (let j = i + 1; j < this.points.length; j++) {
-        const other = this.points[j];
-        const dx = p.x - other.x;
-        const dy = p.y - other.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+      this.context.globalAlpha = 0.35;
+      this.points.forEach(aktuellerPunkt => aktuellerPunkt.drawLineToPoints(this.points, this.context));
 
-        if (dist < 130) {
-          const alpha = (1 - dist / 130) * 0.25;
-          this.context.strokeStyle = `rgba(56, 189, 248, ${alpha})`;
-          this.context.lineWidth = 1;
-          this.context.beginPath();
-          this.context.moveTo(p.x, p.y);
-          this.context.lineTo(other.x, other.y);
-          this.context.stroke();
-        }
-      }
-    }
+      this.animationFrameId = requestAnimationFrame(render);
+    };
 
-    this.animationFrameId = requestAnimationFrame(this.animate);
-  };
+    this.animationFrameId = requestAnimationFrame(render);
+  }
 
-  public toggleTimelineItem(id: string): void {
-    const item = this.timelineItems.find(t => t.id === id);
-    if (item) {
-      item.isOpen = !item.isOpen;
+  // When user clicks on a timeline section, open/toggle that popup
+  openPopupWithID(elementID: string): void {
+    if (this.activePopup === elementID) {
+      this.activePopup = null;
+    } else {
+      this.activePopup = elementID;
     }
   }
 
-  public setFilter(filter: 'all' | 'vergangenheit' | 'gegenwart' | 'zukunft'): void {
-    this.activeTimelineFilter = filter;
-  }
-
-  public get filteredTimelineItems(): TimelineItem[] {
-    if (this.activeTimelineFilter === 'all') {
-      return this.timelineItems;
-    }
-    return this.timelineItems.filter(item => item.category === this.activeTimelineFilter);
+  // Close popup explicitly (e.g. clicking X or backdrop)
+  closePopup(): void {
+    this.activePopup = null;
   }
 }
 
-export class ParticlePoint {
+export class Point {
   constructor(
+    private x_max: number,
+    private y_max: number,
     public x: number,
     public y: number,
     public size: number,
@@ -230,21 +117,51 @@ export class ParticlePoint {
     public dy: number
   ) {}
 
-  move(width: number, height: number): void {
-    this.x += this.dx;
-    this.y += this.dy;
-
-    if (this.x > width) this.x = 0;
-    else if (this.x < 0) this.x = width;
-
-    if (this.y > height) this.y = 0;
-    else if (this.y < 0) this.y = height;
+  updateBounds(width: number, height: number): void {
+    this.x_max = width;
+    this.y_max = height;
   }
 
   draw(context: CanvasRenderingContext2D): void {
-    context.fillStyle = '#38bdf8';
-    context.beginPath();
-    context.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-    context.fill();
+    context.fillStyle = '#eb9759';
+    context.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
+  }
+
+  move(): void {
+    this.x += this.dx;
+    this.y += this.dy;
+
+    if (this.x > this.x_max) {
+      this.x = 0;
+    }
+    if (this.y > this.y_max) {
+      this.y = 0;
+    }
+    if (this.x < 0) {
+      this.x = this.x_max;
+    }
+    if (this.y < 0) {
+      this.y = this.y_max;
+    }
+  }
+
+  drawLineToPoints(points: Point[], context: CanvasRenderingContext2D): void {
+    for (let i = 0; i < points.length; i++) {
+      this.drawLineToPoint(points[i], context);
+    }
+  }
+
+  private drawLineToPoint(otherPoint: Point, context: CanvasRenderingContext2D): void {
+    const dx = this.x - otherPoint.x;
+    const dy = this.y - otherPoint.y;
+    const abstand = Math.sqrt(dx * dx + dy * dy);
+
+    if (abstand < 150) {
+      context.strokeStyle = '#eb9759';
+      context.beginPath();
+      context.moveTo(this.x, this.y);
+      context.lineTo(otherPoint.x, otherPoint.y);
+      context.stroke();
+    }
   }
 }
