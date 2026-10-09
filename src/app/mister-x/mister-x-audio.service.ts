@@ -120,6 +120,34 @@ export class MisterXAudioService {
     } catch (e) {}
   }
 
+    // Dramatic Role Reveal Sound
+  public playRoleRevealSound(isMisterX: boolean) {
+    if (!this.soundEnabled) return;
+    try {
+      this.initAudio();
+      if (!this.audioCtx) return;
+
+      const now = this.audioCtx.currentTime;
+      const notes = isMisterX ? [220, 261.63, 311.13, 440] : [261.63, 329.63, 392.00, 523.25];
+      notes.forEach((freq, idx) => {
+        const osc = this.audioCtx!.createOscillator();
+        const gain = this.audioCtx!.createGain();
+
+        osc.type = isMisterX ? 'sawtooth' : 'triangle';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.14);
+
+        gain.gain.setValueAtTime(0.25, now + idx * 0.14);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.14 + 0.4);
+
+        osc.connect(gain);
+        gain.connect(this.audioCtx!.destination);
+
+        osc.start(now + idx * 0.14);
+        osc.stop(now + idx * 0.14 + 0.4);
+      });
+    } catch (e) {}
+  }
+
   // Catch / Game won alert sound
   public playCatchSound() {
     if (!this.soundEnabled) return;

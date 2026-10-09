@@ -55,6 +55,8 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   public misterXCaughtBy = '';
   public showCatchModal = false;
   public catchModalDismissed = false;
+  public showRoleRevealModal = false;
+  private wakeLockSentinel: any = null;
 
   // Real-life GPS
   public gpsActive = false;
@@ -119,12 +121,41 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       this.playerName = storedName;
     }
 
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    window.addEventListener('online', this.handleOnline);
+
     // Check query params for room code (invite link)
     this.route.queryParams.subscribe(params => {
       if (params['room']) {
         this.roomCode = params['room'].toUpperCase().trim();
       }
     });
+
+    // Restore active session if user locked phone or browser tab refreshed
+    const savedSession = localStorage.getItem('mx_active_session');
+    if (savedSession) {
+      try {
+        const sess = JSON.parse(savedSession);
+        if (sess && sess.roomCode && sess.playerName) {
+          this.roomCode = sess.roomCode;
+          this.playerName = sess.playerName;
+          this.playerId = sess.playerId || this.playerId;
+          this.isHost = !!sess.isHost;
+          this.joinRoomInternal().then(() => {
+            this.showToast(`Sitzung für Raum ${this.roomCode} wiederhergestellt!`);
+            if (!this.isHost) {
+              this.network.publishEvent({
+                type: 'REQUEST_SYNC',
+                senderId: this.playerId,
+                senderName: this.playerName,
+                timestamp: Date.now(),
+                payload: {}
+              });
+            }
+          }).catch(() => {});
+        }
+      } catch (e) {}
+    }
 
     // Check initial GPS to center default coordinates
     if ('geolocation' in navigator) {
@@ -162,6 +193,9 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    window.removeEventListener('online', this.handleOnline);
+    this.releaseWakeLock();
     this.stopGpsTracking();
     this.stopPingTimer();
     this.stopLocationHeartbeat();
@@ -224,6 +258,13 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       this.startGpsTracking();
       this.generateQrCode();
 
+      localStorage.setItem('mx_active_session', JSON.stringify({
+        roomCode: this.roomCode,
+        playerId: this.playerId,
+        playerName: this.playerName,
+        isHost: this.isHost
+      }));
+
       // If joining existing room, request state sync
       if (!this.isHost) {
         setTimeout(() => {
@@ -246,6 +287,8 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   public leaveLobby() {
+    localStorage.removeItem('mx_active_session');
+    this.releaseWakeLock();
     this.stopGpsTracking();
     this.stopPingTimer();
     this.stopLocationHeartbeat();
@@ -457,6 +500,12 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     this.audio.playStartSound();
+    this.audio.playRoleRevealSound(this.myRole === 'MISTER_X');
+    this.showRoleRevealModal = true;
+    if ('vibrate' in navigator) {
+      navigator.vibrate([300, 150, 300, 150, 500]);
+    }
+    this.requestWakeLock();
     this.showToast(`Spiel gestartet! Du bist: ${this.myRole === 'MISTER_X' ? '🎩 MISTER X' : '🕵️ DETEKTIV'}`);
 
     this.nextPingTimestamp = nextPingTimestamp;
@@ -970,6 +1019,25 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
         break;
       }
 
+      case 'REQUEST_SYNC': {
+        if (this.isHost) {
+          this.network.publishEvent({
+            type: 'SYNC_STATE',
+            senderId: this.playerId,
+            senderName: this.playerName,
+            timestamp: Date.now(),
+            payload: {
+              settings: this.settings,
+              gameStatus: this.gameStatus,
+              players: this.players,
+              pings: this.pings,
+              nextPingTimestamp: this.nextPingTimestamp
+            }
+          });
+        }
+        break;
+      }
+
       case 'SYNC_STATE': {
         if (!this.isHost && msg.payload.settings) {
           this.settings = msg.payload.settings;
@@ -1269,4 +1337,71 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.closeAllDrawers();
     this.showToast(`Auf Ping #${ping.pingNumber} zentriert`);
   }
+
+  public closeRoleRevealModal() {
+    this.showRoleRevealModal = false;
+  }
+
+  private async requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator) {
+        this.wakeLockSentinel = await (navigator as any).wakeLock.request('screen');
+        this.wakeLockSentinel.addEventListener('release', () => {
+          this.wakeLockSentinel = null;
+        });
+      }
+    } catch (e) {}
+  }
+
+  private releaseWakeLock() {
+    if (this.wakeLockSentinel) {
+      try {
+        this.wakeLockSentinel.release();
+      } catch (e) {}
+      this.wakeLockSentinel = null;
+    }
+  }
+
+  private handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      if (this.viewState === 'GAME') {
+        this.requestWakeLock();
+      }
+
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            this.ngZone.run(() => {
+              this.currentLat = pos.coords.latitude;
+              this.currentLng = pos.coords.longitude;
+              this.gpsAccuracy = Math.round(pos.coords.accuracy);
+              this.onPositionUpdate(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy, pos.coords.heading || 0);
+            });
+          },
+          () => {},
+          { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
+        );
+      }
+
+      if (this.roomCode && !this.network.isConnected()) {
+        this.network.reconnect();
+      }
+
+      if (!this.isHost && this.roomCode) {
+        this.network.publishEvent({
+          type: 'REQUEST_SYNC',
+          senderId: this.playerId,
+          senderName: this.playerName,
+          timestamp: Date.now(),
+          payload: {}
+        });
+      }
+    }
+  };
+
+  private handleOnline = () => {
+    if (this.roomCode) {
+      this.network.reconnect();
+    }
+  };
 }

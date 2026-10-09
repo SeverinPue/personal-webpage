@@ -35,7 +35,7 @@ export interface PingRecord {
 }
 
 export interface GameEventMessage {
-  type: 'JOIN' | 'LEAVE' | 'SYNC_STATE' | 'SETTINGS' | 'START_GAME' | 'POS' | 'PING' | 'CATCH' | 'END_GAME' | 'MESSAGE';
+  type: 'JOIN' | 'LEAVE' | 'SYNC_STATE' | 'SETTINGS' | 'START_GAME' | 'POS' | 'PING' | 'CATCH' | 'END_GAME' | 'MESSAGE' | 'REQUEST_SYNC';
   senderId: string;
   senderName: string;
   timestamp: number;

@@ -42,6 +42,20 @@ export class MisterXNetworkService {
     return !!(this.client && this.client.connected);
   }
 
+  public reconnect() {
+    if (this.client && !this.client.connected) {
+      try {
+        this.client.reconnect();
+      } catch (e) {
+        if (this.roomCode && this.currentPlayer) {
+          this.connect(this.roomCode, this.currentPlayer).catch(() => {});
+        }
+      }
+    } else if (!this.client && this.roomCode && this.currentPlayer) {
+      this.connect(this.roomCode, this.currentPlayer).catch(() => {});
+    }
+  }
+
   private tryConnectBroker(brokerIndex: number, resolve: () => void, reject: (err: any) => void) {
     const brokerUrl = this.brokers[brokerIndex % this.brokers.length];
     const clientId = `misterx_${this.currentPlayer?.id || Math.random().toString(36).substring(2, 9)}_${Date.now().toString(36)}`;
@@ -49,22 +63,10 @@ export class MisterXNetworkService {
     try {
       this.client = mqtt.connect(brokerUrl, {
         clientId,
-        clean: true,
+        clean: false,
         connectTimeout: 7000,
-        reconnectPeriod: 3000,
-        keepalive: 30,
-        will: {
-          topic: `misterx/game/${this.roomCode}/events`,
-          payload: Buffer.from(JSON.stringify({
-            type: 'LEAVE',
-            senderId: this.currentPlayer?.id || '',
-            senderName: this.currentPlayer?.name || '',
-            timestamp: Date.now(),
-            payload: { reason: 'disconnect' }
-          })),
-          qos: 0,
-          retain: false
-        }
+        reconnectPeriod: 2000,
+        keepalive: 30
       });
 
       let hasResolved = false;

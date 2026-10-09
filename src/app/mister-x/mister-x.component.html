@@ -329,6 +329,65 @@
       </div>
     </footer>
 
+    <!-- ROLE REVEAL FULLSCREEN MODAL AT GAME START -->
+    <div class="role-reveal-backdrop" *ngIf="showRoleRevealModal" (click)="closeRoleRevealModal()">
+      <div class="role-reveal-card" [class.is-misterx]="myRole === 'MISTER_X'" (click)="$event.stopPropagation()">
+        <div class="role-badge-tag">
+          {{ myRole === 'MISTER_X' ? 'GEHEIMAUFTRAG' : 'EINSATZBEFEHL' }}
+        </div>
+        
+        <div class="role-reveal-avatar">
+          {{ myRole === 'MISTER_X' ? '🎩' : '🕵️‍♂️' }}
+        </div>
+
+        <h1 class="role-reveal-title">
+          {{ myRole === 'MISTER_X' ? 'DU BIST MISTER X!' : 'DU BIST DETEKTIV!' }}
+        </h1>
+
+        <p class="role-reveal-sub">
+          {{ myRole === 'MISTER_X' 
+              ? 'Alle anderen Spieler jagen dich! Bleib in Bewegung und lass dich nicht erwischen.' 
+              : 'Schließe dich mit den anderen Detektiven zusammen und kreist Mister X ein!' }}
+        </p>
+
+        <div class="role-briefing-list">
+          <div class="briefing-item" *ngIf="myRole === 'MISTER_X'">
+            <span class="briefing-icon">📡</span>
+            <div class="briefing-text">
+              <strong>Ortungs-Warnung</strong>
+              <span>Alle {{ settings.pingIntervalSeconds / 60 }} Min. wird dein Standort als Ping an alle Detektive gesendet!</span>
+            </div>
+          </div>
+          <div class="briefing-item" *ngIf="myRole === 'MISTER_X'">
+            <span class="briefing-icon">⚠️</span>
+            <div class="briefing-text">
+              <strong>Sicherheitsabstand</strong>
+              <span>Lass keinen Detektiv näher als 10 Meter an dich herankommen!</span>
+            </div>
+          </div>
+
+          <div class="briefing-item" *ngIf="myRole !== 'MISTER_X'">
+            <span class="briefing-icon">📡</span>
+            <div class="briefing-text">
+              <strong>Radar-Pings</strong>
+              <span>Achte auf die roten Pings alle {{ settings.pingIntervalSeconds / 60 }} Min., um seine Fährte aufzunehmen.</span>
+            </div>
+          </div>
+          <div class="briefing-item" *ngIf="myRole !== 'MISTER_X'">
+            <span class="briefing-icon">🚨</span>
+            <div class="briefing-text">
+              <strong>10-Meter Zugriff</strong>
+              <span>Sobald du näher als 10 Meter an ihm bist, erscheint der Fang-Knopf!</span>
+            </div>
+          </div>
+        </div>
+
+        <button class="role-confirm-btn" (click)="closeRoleRevealModal()">
+          <span>{{ myRole === 'MISTER_X' ? '🕶️ UNTERTAUCHEN & FLIEHEN' : '🔍 JAGD BEGINNEN' }}</span>
+        </button>
+      </div>
+    </div>
+
     <!-- CATCH POPUP (WHEN WITHIN 10 METERS OF MISTER X) -->
     <div class="catch-modal-backdrop" *ngIf="showCatchModal && myRole === 'DETECTIVE' && gameStatus === 'PLAYING'">
       <div class="catch-modal-card">
