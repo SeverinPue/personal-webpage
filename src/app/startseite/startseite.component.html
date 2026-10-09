@@ -2,62 +2,68 @@
 
 <section class="content">
 
+  <!-- Über mich Box -->
   <div id="ueber_mich" class="div_background">
     <h3>Über mich</h3>
     <span>
-    Mein Name ist Severin Püntener. Das Thema Informatik interessiert mich schon seit längerem. Sicher hat dazu auch
-    mein Vater, welcher Informatiker ist und mein Bruder, welcher an der ETH Informatik studiert mit beeinflusst.
-    Bis jetzt habe ich kleinere Scratch, Java, HTML und Lego Mindstorms Projekte gemacht. Aktuell bin ich in der Sek A,
-    welche ich im Sommer 2023 abschliessen werde.
-    Ich bin sehr gut im selbstständigen und konzentrierten Arbeiten. Ich lasse mich auch nicht ablenken und bleibe immer
-    geduldig dran. In der Schule sind Informatik und Mathe meinen Lieblingsfächer.
+      Mein Name ist Severin Püntener. Das Thema Informatik interessiert mich schon seit längerem. Sicher hat dazu auch
+      mein Vater, welcher Informatiker ist, und mein Bruder, welcher an der ETH Informatik studiert hat, mit beigetragen.
+      Nach ersten kleineren Projekten mit Scratch, Java, HTML und Lego Mindstorms habe ich im Sommer 2023 die Sek A erfolgreich abgeschlossen
+      und mache nun meine Lehre als Applikationsentwickler EFZ.
+      Ich bin sehr gut im selbstständigen und konzentrierten Arbeiten. Ich lasse mich nicht ablenken und bleibe immer
+      geduldig dran. Neben Informatik und Mathematik bin ich gerne in Bewegung und engagiere mich als Gruppenleiter bei der Cevi.
     </span>
   </div>
-<div id="place_holder" >
 
-</div>
+  <div id="place_holder"></div>
 
+  <!-- Arrow Timeline -->
   <div id="arrow">
-    <div id="dreieck">
-    </div>
+    <div id="dreieck"></div>
     <div id="rechteck" class="pupup_position">
 
+      <!-- Vergangenheit -->
       <div id="Vergangenheit" class="popup div_background" (click)="openPopupWithID('myPopup1')">
         <h3>Vergangenheit</h3>
-        <div class="popuptext" id="myPopup1">
+        <div class="popuptext" id="myPopup1" [class.show]="activePopup === 'myPopup1'" (click)="$event.stopPropagation()">
+          <button class="close-icon-btn" (click)="closePopup(); $event.stopPropagation()" aria-label="Schliessen"></button>
           <span>
-          In den letzten Monaten habe ich mich intensiv mit meiner Berufswahl auseinandergesetzt Ich konnte in
-          verschiedenen Berufen Eindrücke sammeln. Während Schnupperlehren als Apllikationsentwickler wurde mir klar,
-          dass ich diesen spannenden Beruf erlernen möchte.
-            </span>
+            In den letzten Jahren habe ich mich intensiv mit meiner Berufswahl auseinandergesetzt. Ich konnte in
+            verschiedenen Berufen Eindrücke sammeln. Während Schnupperlehren als Applikationsentwickler wurde mir schnell klar,
+            dass ich diesen spannenden Beruf erlernen möchte. Im Sommer 2023 habe ich die Sek A an der Schule Zürich Nord erfolgreich abgeschlossen.
+          </span>
         </div>
       </div>
 
+      <!-- Gegenwart -->
       <div id="Gegenwart" class="popup div_background" (click)="openPopupWithID('myPopup2')">
         <h3>Gegenwart</h3>
-        <div class="popuptext" id="myPopup2">
+        <div class="popuptext" id="myPopup2" [class.show]="activePopup === 'myPopup2'" (click)="$event.stopPropagation()">
+          <button class="close-icon-btn" (click)="closePopup(); $event.stopPropagation()" aria-label="Schliessen"></button>
           <span>
-        Ich gehe in die <a href="https://szn.ch/">Schule Zürich Nord</a> in die
-        Sek A In meiner Freizeit gehe ich in die <a href="https://zh11.ch/">Cevi</a> und bin dort Gruppenleiter.
-        Ich bewege mich sehr gerne.
-            </span>
+            Aktuell absolviere ich meine Lehre als Applikationsentwickler EFZ und arbeite an spannenden Softwareprojekten.
+            In meiner Freizeit gehe ich in die <a href="https://zh11.ch/" target="_blank" rel="noopener noreferrer">Cevi</a> und bin dort Gruppenleiter.
+            Ich bewege mich sehr gerne.
+          </span>
         </div>
       </div>
 
+      <!-- Zukunft -->
       <div id="Zukunft" class="popup div_background" (click)="openPopupWithID('myPopup3')">
         <h3>Zukunft</h3>
-        <div class="popuptext" id="myPopup3">
+        <div class="popuptext" id="myPopup3" [class.show]="activePopup === 'myPopup3'" (click)="$event.stopPropagation()">
+          <button class="close-icon-btn" (click)="closePopup(); $event.stopPropagation()" aria-label="Schliessen"></button>
           <span>
-        Im Sommer 2023 möchte ich eine Lehre als Applikationsentwickler EFZ
-        begingen, in einer Firma welche spannende Softwareprojekte macht. Ich freue mich auf die Arbeit am Computer,
-        darauf mit logischem Denken Probleme lösen zu können und ein Teil von einem Team zu sein.
-            </span>
+            Mein Ziel ist es, meine Lehre als Applikationsentwickler EFZ erfolgreich abzuschliessen, weiterhin
+            an anspruchsvollen Softwareprojekten mitzuwirken und mich kontinuierlich in neuen Technologien zu vertiefen.
+          </span>
         </div>
-    </div>
+      </div>
 
     </div>
   </div>
 
+  <!-- Klickbarer Backdrop bei geöffnetem Popup -->
+  <div class="popup-backdrop" *ngIf="activePopup" (click)="closePopup()"></div>
+
 </section>
-
-

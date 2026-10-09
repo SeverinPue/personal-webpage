@@ -1,133 +1,133 @@
-import {Component, ElementRef, OnInit, ViewChild} from '@angular/core';
+import { Component, ElementRef, OnInit, OnDestroy, ViewChild, HostListener } from '@angular/core';
 
 @Component({
   selector: 'app-startseite',
   templateUrl: './startseite.component.html',
   styleUrls: ['./startseite.component.scss']
 })
-export class StartseiteComponent implements OnInit {
+export class StartseiteComponent implements OnInit, OnDestroy {
 
-  // its important myCanvas matches the variable name in the template
-  @ViewChild('backgroundCanvas', {static: true})
+  @ViewChild('backgroundCanvas', { static: true })
   private canvasRef!: ElementRef<HTMLCanvasElement>;
   private context!: CanvasRenderingContext2D;
-  private readonly x_max;
-  private readonly y_max;
+  private x_max: number = 1000;
+  private y_max: number = 800;
   private points: Point[] = [];
+  private animationFrameId: number | null = null;
 
+  private readonly SPEED = 1.4;
 
-  private readonly NUMBER_OF_POINTS;
+  // Active popup state for reliable open/close
+  public activePopup: string | null = null;
 
-  private readonly SPEED = 1.5;
-
-  constructor() {
-
-
-    if (window.outerWidth < 1000) {
-      this.x_max = window.outerWidth + 200;
-      this.y_max = window.outerHeight + 200;
-      this.NUMBER_OF_POINTS = 60;
-    } else {
-
-      this.x_max = window.outerWidth;
-      this.y_max = window.outerHeight;
-      this.NUMBER_OF_POINTS = 150;
-
-
-    }
-
-  }
+  constructor() {}
 
   ngOnInit(): void {
-
-    // Access Canvas
     const ctx = this.canvasRef.nativeElement.getContext('2d');
     if (!ctx) throw new Error("Can't access canvas context!");
     this.context = ctx;
 
+    this.updateCanvasDimensions();
+    this.initPoints();
+    this.startAnimation();
+  }
 
-    this.canvasRef.nativeElement.height = this.y_max;
-    this.canvasRef.nativeElement.width = this.x_max;
-    // Draw on the canvas
-    this.context.fillStyle = "#FF0000";
-
-
-    this.points = [];
-
-    var counter = 0;
-
-    while (counter < this.NUMBER_OF_POINTS) {
-      var min_spawn_x = 1
-      var max_spawn_x = this.x_max
-      var x = (Math.random() * (max_spawn_x - min_spawn_x)) + min_spawn_x;
-
-      var min_spawn_y = 1
-      var max_spawn_y = this.y_max
-      var y = (Math.random() * (max_spawn_y - min_spawn_y)) + min_spawn_y;
-
-      var min_size = 2;
-      var max_size = 5;
-      var size = (Math.random() * (max_size - min_size)) + min_size;
-      const point1 = new Point(this.x_max, this.y_max, x, y, size, Math.random() * this.SPEED - this.SPEED / 2, Math.random() * this.SPEED - this.SPEED / 2);
-      this.points.push(point1);
-
-      counter += 1
-      x += 50
-
+  ngOnDestroy(): void {
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
     }
+  }
 
+  @HostListener('window:resize')
+  onResize(): void {
+    if (this.canvasRef && this.canvasRef.nativeElement) {
+      this.updateCanvasDimensions();
+      this.points.forEach(p => p.updateBounds(this.x_max, this.y_max));
+    }
+  }
 
-    setInterval(() => {
-      this.points.forEach(pkt => pkt.move());
+  private updateCanvasDimensions(): void {
+    this.x_max = window.innerWidth;
+    this.y_max = window.innerHeight;
+    this.canvasRef.nativeElement.width = this.x_max;
+    this.canvasRef.nativeElement.height = this.y_max;
+  }
 
+  private initPoints(): void {
+    this.points = [];
+    const count = this.x_max < 900 ? 55 : 120;
+
+    for (let counter = 0; counter < count; counter++) {
+      const x = Math.random() * this.x_max;
+      const y = Math.random() * this.y_max;
+      const size = Math.random() * 3 + 2;
+      const dx = (Math.random() - 0.5) * this.SPEED;
+      const dy = (Math.random() - 0.5) * this.SPEED;
+      this.points.push(new Point(this.x_max, this.y_max, x, y, size, dx, dy));
+    }
+  }
+
+  private startAnimation(): void {
+    const render = () => {
+      // Clear with original teal background
       this.context.globalAlpha = 1;
       this.context.fillStyle = "#094456";
       this.context.fillRect(0, 0, this.x_max, this.y_max);
+
+      // Move points
+      this.points.forEach(pkt => pkt.move());
+
+      // Draw points
+      this.context.globalAlpha = 0.85;
+      this.points.forEach(pkt => pkt.draw(this.context));
+
+      // Draw connecting lines
       this.context.globalAlpha = 0.25;
-
-      this.points.forEach(pkt => pkt.draw(this.context))
-
-      // TODO: For each point: draw a line to each other point
       this.points.forEach(aktuellerPunkt => aktuellerPunkt.drawLineToPoints(this.points, this.context));
 
-    }, 15);
+      this.animationFrameId = requestAnimationFrame(render);
+    };
 
-
+    this.animationFrameId = requestAnimationFrame(render);
   }
 
-
-// When the user clicks on div, open the popup
-  openPopupWithID(elementID: string) {
-    let popup = document.getElementById(elementID);
-
-    if (popup !== null)
-      popup.classList.toggle("show");
+  // Toggle or open specific popup
+  openPopupWithID(elementID: string): void {
+    if (this.activePopup === elementID) {
+      this.activePopup = null;
+    } else {
+      this.activePopup = elementID;
+    }
   }
 
+  // Close popup
+  closePopup(): void {
+    this.activePopup = null;
+  }
 }
 
-
 export class Point {
-
-
   constructor(
-    private readonly x_max: number,
-    private readonly y_max: number,
+    private x_max: number,
+    private y_max: number,
     public x: number,
     public y: number,
     public size: number,
     public dx: number,
-    public dy: number) {
+    public dy: number
+  ) {}
+
+  updateBounds(width: number, height: number): void {
+    this.x_max = width;
+    this.y_max = height;
   }
 
   draw(context: CanvasRenderingContext2D): void {
-
-    context.fillStyle = '#eb9759'
+    context.fillStyle = '#eb9759';
     context.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
-
   }
 
-  move() {
+  move(): void {
     this.x += this.dx;
     this.y += this.dy;
 
@@ -143,38 +143,25 @@ export class Point {
     if (this.y < 0) {
       this.y = this.y_max;
     }
-
   }
 
-  drawLineToPoints(points: Point[], context: CanvasRenderingContext2D) {
-
-
-    // TODO: for each point (other point) draw a line from this point to the other point
-    points.forEach(otherPoint => this.drawLineToPoint(otherPoint, context));
-
+  drawLineToPoints(points: Point[], context: CanvasRenderingContext2D): void {
+    for (let i = 0; i < points.length; i++) {
+      this.drawLineToPoint(points[i], context);
+    }
   }
 
-
-  private drawLineToPoint(otherPoint: Point, context: CanvasRenderingContext2D) {
-
-    // TODO: draw a lin between this point and other point
-
+  private drawLineToPoint(otherPoint: Point, context: CanvasRenderingContext2D): void {
     const dx = this.x - otherPoint.x;
     const dy = this.y - otherPoint.y;
     const abstand = Math.sqrt(dx * dx + dy * dy);
 
     if (abstand < 150) {
-
       context.strokeStyle = '#eb9759';
-
       context.beginPath();
       context.moveTo(this.x, this.y);
       context.lineTo(otherPoint.x, otherPoint.y);
       context.stroke();
-
     }
-
   }
-
 }
-

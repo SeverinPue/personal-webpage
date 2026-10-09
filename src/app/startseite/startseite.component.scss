@@ -1,223 +1,220 @@
 $color-foreground: #31636b;
 $color-background-arrow: #bbbdaf;
-$iphone: 1000px;
-
-
-
+$color-box: #dfd6c0d4;
 
 #background {
   position: fixed;
   top: 0;
   left: 0;
-
-  @media screen and (max-width: 1000px) {
-
-    margin: -100px;
-    padding: 100px;
-    width: calc(100vw + 200px);
-    height: calc(100vh + 200px);
-
-  }
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
 }
-
-
-$margin-content: 30px;
 
 .content {
-
-  position: absolute;
-  width: calc(100vw - #{$margin-content * 4});
-  height: calc(100vh - #{$margin-content * 4});
-  color: #000000;
-  display: grid;
-  top: 0;
-  left: 0;
-  align-items: start;
-  grid-template-columns: 33% 33% 33%;
-  grid-column-start: 2;
-  grid-column-end: 3;
-
-  overflow-y: auto;
-  overflow-x: hidden;
-
-  @media screen and (max-width: 1000px) {
-    grid-template-columns: 100%;
-    width: calc(100vw);
-    position: fixed;
-  }
-
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 960px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 40px 20px 90px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
+// Über mich Box
 #ueber_mich {
-  grid-column-start: 2;
-  grid-column-end: 3;
-  background-color: $color-background-arrow;
+  width: 100%;
+  max-width: 680px;
+  background-color: $color-box;
   color: #000;
-  @media screen and (max-width: 1000px) {
-    grid-column-start: 1;
-    grid-column-end: 2;
-    background-color: $color-background-arrow;
-    margin-top: 100px;
+  text-align: left;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  margin-top: 20px;
+  line-height: 1.65;
+  box-sizing: border-box;
+
+  h3 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: 1.25rem;
   }
 
+  span {
+    display: inline-block;
+    font-size: 0.98rem;
+    color: #094456;
+  }
 }
-
 
 .div_background {
-  padding: $margin-content;
-  background-color: #dfd6c0d4;
-  margin: 25px 0;
+  padding: 28px;
+  background-color: $color-box;
 }
 
+#place_holder {
+  height: 35px;
+}
 
+// Arrow Timeline
+#arrow {
+  width: 100%;
+  max-width: 760px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
 
-// Style only for big screens (arrow and other stuff)
-@media screen and (min-width: 1000px) {
+#dreieck {
+  width: 0;
+  height: 0;
+  border-left: 25px solid transparent;
+  border-right: 25px solid transparent;
+  border-bottom: 50px solid #d9d2be;
+  transform: rotate(90deg);
+  margin-left: -12px;
+  z-index: 2;
+  flex-shrink: 0;
 
-  #arrow .div_background, #arrow h3 {
+  @media screen and (max-width: 720px) {
+    display: none;
+  }
+}
+
+#rechteck {
+  flex: 1;
+  background-color: $color-background-arrow;
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  min-height: 50px;
+
+  @media screen and (max-width: 720px) {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+.pupup_position {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  text-align: center;
+
+  @media screen and (max-width: 720px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+// Timeline Clickable Stations
+.popup {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  line-height: 50px;
+  border-radius: 6px;
+  transition: background-color 0.2s ease, transform 0.15s ease;
+  margin: 0;
+  padding: 0;
+  background-color: transparent;
+
+  h3 {
     margin: 0;
     padding: 0;
+    font-size: 1.15rem;
+    color: #094456;
+    transition: color 0.2s ease;
   }
 
-  #arrow h3 {
-    transition-duration: 100ms;
+  &:hover {
+    background-color: #a8aba0;
+
+    h3 {
+      color: #062b37;
+    }
   }
 
-  #arrow h3:hover {
-
-    background-color: #b0ada2;
-    font-size: 1.23em;
-    transition-duration: 100ms;
-
-  }
-
-  //Arrow
-  #arrow {
-
-    grid-column-start: 1;
-    grid-column-end: 4;
-    position: relative;
-
-
-  }
-
-  #dreieck {
-
-    position: absolute;
-    right: 0;
-    width: 0;
-    height: 0;
-    border-left: 50px solid transparent;
-    border-right: 50px solid transparent;
-    border-bottom: 100px solid #d9d2be;
-    transform: rotate(90deg);
-
-  }
-  #rechteck {
-    margin: 25px;
-    width: calc(100% - 75px);
+  @media screen and (max-width: 720px) {
     background-color: $color-background-arrow;
-    height: 50px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
   }
+}
 
+// Popups
+.popup .popuptext {
+  visibility: hidden;
+  opacity: 0;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  z-index: 1000;
+  background-color: $color-background-arrow;
+  color: #000;
+  text-align: center;
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  width: 90%;
+  max-width: 580px;
+  max-height: 80vh;
+  padding: 45px 32px 32px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  line-height: 1.65;
+  transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s ease;
 
-  /* Popup container*/
-  .popup {
-    position: relative;
+  span {
+    font-size: 1.05rem;
+    color: #094456;
     display: inline-block;
-    cursor: pointer;
   }
 
-
-  .pupup_position {
-    display: grid;
-    grid-template-columns: 33% 33% 33%;
-    text-align: center;
-  }
-
-
-  /* Popup container - can be anything you want */
-  .popup {
-    position: relative;
-    display: inline-block;
-    cursor: pointer;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    grid-template-columns: 33% 33% 33%;
-    line-height: 50px;
-  }
-
-  /* The actual popup */
-  .popup .popuptext {
-    visibility: hidden;
-    width: 225px;
-    background-color: $color-background-arrow;
-    color: #000;
-    text-align: center;
-    border-radius: 6px;
-    padding: 8px 0;
+  .close-icon-btn {
     position: absolute;
-    z-index: 1;
-    bottom: 125%;
-    left: 50%;
-    line-height: 1.35rem;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    background: url("../../assets/Icons/Icon_Kreuz.png") no-repeat center center;
+    background-size: 24px;
+    border: none;
+    cursor: pointer;
+    opacity: 0.85;
+    transition: opacity 0.2s ease, transform 0.2s ease;
 
-    background-image: url("../../assets/Icons/Icon_Kreuz.png");
-    height: 225px;
-    background-repeat: no-repeat;
-    background-position: right top;
-    background-size: 30px;
+    &:hover {
+      opacity: 1;
+      transform: scale(1.1);
+    }
   }
 
-
-  /* Toggle this class - hide and show the popup */
-  .popup .show {
-    visibility: visible;
-    -webkit-animation: fadeIn 0.5s;
-    animation: fadeIn 0.5s;
-
-
-    // makes popup full screen...
-    position: fixed;
-    top: 150px;
-    left: 150px;
-    height: calc(100vh - 300px);
-    width: calc(100vw - 300px);
-
-
-    display: grid;
-    text-align: center;
-    align-items: center;
+  @media screen and (max-width: 600px) {
+    padding: 40px 22px 24px;
 
     span {
-
-      margin: auto;
-      max-width: 500px;
-
-    }
-
-
-  }
-
-  /* Add animation (fade in the popup) */
-  @-webkit-keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
+      font-size: 0.95rem;
     }
   }
+}
 
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
+.popup .popuptext.show {
+  visibility: visible;
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+// Backdrop
+.popup-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(9, 68, 86, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 999;
 }
