@@ -37,7 +37,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     centerLng: 8.5417,
     radiusMeters: 800,
     pingIntervalSeconds: 180, // 3 Minutes default
-    catchRadiusMeters: 30,
+    catchRadiusMeters: 10,
     misterXPlayerId: '',
     gameDurationMinutes: 45
   };
@@ -53,6 +53,8 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   public distanceToMisterX: number | null = null;
   public canCatchMisterX = false;
   public misterXCaughtBy = '';
+  public showCatchModal = false;
+  public catchModalDismissed = false;
 
   // Real-life GPS
   public gpsActive = false;
@@ -768,24 +770,55 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private evaluateCatchRadius() {
     const misterX = this.players.find(p => p.role === 'MISTER_X');
-    if (!misterX || !misterX.lat || !misterX.lng || !this.currentLat || !this.currentLng) {
+    if (!misterX || misterX.lat === undefined || misterX.lng === undefined || !this.currentLat || !this.currentLng) {
       this.canCatchMisterX = false;
+      this.showCatchModal = false;
       return;
     }
 
     const dist = this.calculateDistance(this.currentLat, this.currentLng, misterX.lat, misterX.lng);
     this.distanceToMisterX = Math.round(dist);
 
-    if (this.myRole === 'DETECTIVE') {
-      this.canCatchMisterX = dist <= this.settings.catchRadiusMeters;
+    if (this.myRole === 'DETECTIVE' && this.gameStatus === 'PLAYING') {
+      const withinRange = dist <= (this.settings.catchRadiusMeters || 10);
+      this.canCatchMisterX = withinRange;
+
+      if (withinRange) {
+        if (!this.showCatchModal && !this.catchModalDismissed) {
+          this.showCatchModal = true;
+          this.audio.playCatchAlertSound();
+          if ('vibrate' in navigator) {
+            navigator.vibrate([200, 100, 200, 100, 400]);
+          }
+        }
+      } else {
+        this.catchModalDismissed = false;
+        this.showCatchModal = false;
+      }
+    }
+  }
+
+  public dismissCatchModal() {
+    this.showCatchModal = false;
+    this.catchModalDismissed = true;
+    this.showToast('Popup minimiert. Fang-Button bleibt aktiv!');
+  }
+
+  public openCatchModal() {
+    if (this.canCatchMisterX) {
+      this.showCatchModal = true;
     }
   }
 
   public catchMisterX() {
-    if (!this.canCatchMisterX && this.distanceToMisterX !== null && this.distanceToMisterX > this.settings.catchRadiusMeters) {
-      this.showToast(`Zu weit entfernt (${this.distanceToMisterX}m)! Du musst innerhalb von ${this.settings.catchRadiusMeters}m sein.`);
+    const maxRadius = this.settings.catchRadiusMeters || 10;
+    if (!this.canCatchMisterX && this.distanceToMisterX !== null && this.distanceToMisterX > maxRadius) {
+      this.showToast(`Zu weit entfernt (${this.distanceToMisterX}m)! Du musst innerhalb von ${maxRadius}m sein.`);
       return;
     }
+
+    this.showCatchModal = false;
+    this.catchModalDismissed = false;
 
     this.network.publishEvent({
       type: 'CATCH',
@@ -804,6 +837,8 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   private applyCatch(catcherName: string) {
     this.gameStatus = 'CAUGHT';
     this.misterXCaughtBy = catcherName;
+    this.showCatchModal = false;
+    this.catchModalDismissed = false;
     this.audio.playCatchSound();
     this.stopPingTimer();
     this.showToast(`🎉 GEFANGEN! Mister X wurde von ${catcherName} geschnappt!`);
@@ -817,6 +852,8 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.lastPing = null;
     this.canCatchMisterX = false;
     this.misterXCaughtBy = '';
+    this.showCatchModal = false;
+    this.catchModalDismissed = false;
     this.stopLocationHeartbeat();
 
     // Clear map markers
@@ -1202,5 +1239,12 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   public closeAllDrawers() {
     this.showPingHistory = false;
     this.showPlayerListDrawer = false;
+  }
+
+  public centerOnPing(ping: PingRecord) {
+    if (!this.gameMap) return;
+    this.gameMap.setView([ping.lat, ping.lng], 16);
+    this.closeAllDrawers();
+    this.showToast(`Auf Ping #${ping.pingNumber} zentriert`);
   }
 }

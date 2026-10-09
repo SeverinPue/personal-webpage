@@ -291,12 +291,12 @@
           <button
             class="catch-btn"
             [class.can-catch]="canCatchMisterX"
-            (click)="catchMisterX()"
+            (click)="canCatchMisterX ? openCatchModal() : catchMisterX()"
             [disabled]="!canCatchMisterX && (distanceToMisterX === null || distanceToMisterX > settings.catchRadiusMeters)"
           >
             <span class="catch-icon">🚨</span>
             <span class="catch-text">
-              {{ canCatchMisterX ? 'MISTER X FANGEN! (In Reichweite!)' : 'FANGEN (' + (distanceToMisterX ? distanceToMisterX + 'm entfernt, nötig: ≤' + settings.catchRadiusMeters + 'm' : 'Suchmodus') + ')' }}
+              {{ canCatchMisterX ? '⚡ MISTER X FANGEN! (' + distanceToMisterX + 'm!)' : 'FANGEN (' + (distanceToMisterX ? distanceToMisterX + 'm entfernt, nötig: ≤' + settings.catchRadiusMeters + 'm' : 'Suchmodus') + ')' }}
             </span>
           </button>
         </div>
@@ -329,6 +329,28 @@
       </div>
     </footer>
 
+    <!-- CATCH POPUP (WHEN WITHIN 10 METERS OF MISTER X) -->
+    <div class="catch-modal-backdrop" *ngIf="showCatchModal && myRole === 'DETECTIVE' && gameStatus === 'PLAYING'">
+      <div class="catch-modal-card">
+        <div class="siren-icon">🚨</div>
+        <h2 class="catch-title">MISTER X IN REICHWEITE!</h2>
+        <div class="catch-distance-box">
+          <span class="dist-num">{{ distanceToMisterX !== null ? distanceToMisterX : '≤10' }}</span>
+          <span class="dist-unit">Meter Abstand</span>
+        </div>
+        <p class="catch-desc">
+          Mister X ist weniger als 10 Meter von dir entfernt! Greif sofort zu, bevor er flieht!
+        </p>
+        <button class="catch-huge-btn" (click)="catchMisterX()">
+          <span class="catch-btn-icon">⚡</span>
+          <span>JETZT VERHAFTEN!</span>
+        </button>
+        <button class="catch-dismiss-btn" (click)="dismissCatchModal()">
+          ✕ Karte kurz ansehen
+        </button>
+      </div>
+    </div>
+
     <!-- BACKDROP FOR DRAWERS / OVERLAYS -->
     <div class="drawer-backdrop" *ngIf="showPingHistory || showPlayerListDrawer" (click)="closeAllDrawers()"></div>
 
@@ -339,14 +361,17 @@
         <button class="close-btn" (click)="closeAllDrawers()">✕</button>
       </div>
       <div class="drawer-content">
-        <div class="empty-hint" *ngIf="pings.length === 0">Noch keine Pings erfolgt.</div>
-        <div class="ping-item" *ngFor="let p of pings; let idx = index" (click)="centerOnLastPing()">
+        <div class="empty-hint" *ngIf="pings.length === 0">
+          <span>📡 Noch keine Pings erfolgt.</span>
+          <small>Mister X wird alle {{ settings.pingIntervalSeconds / 60 }} Min. automatisch geortet.</small>
+        </div>
+        <div class="ping-item" *ngFor="let p of pings" (click)="centerOnPing(p)">
           <span class="ping-num">#{{ p.pingNumber }}</span>
           <div class="ping-details">
-            <strong>Uhrzeit: {{ p.timestamp | date:'HH:mm:ss' }}</strong>
-            <span>Koordinaten: {{ p.lat | number:'1.4-4' }}, {{ p.lng | number:'1.4-4' }}</span>
+            <strong>{{ p.timestamp | date:'HH:mm:ss' }} Uhr</strong>
+            <span class="ping-coords">{{ p.lat | number:'1.4-4' }}, {{ p.lng | number:'1.4-4' }}</span>
           </div>
-          <button class="btn-micro">📍 Auf Karte</button>
+          <span class="ping-action-badge">📍 Auf Karte</span>
         </div>
       </div>
     </div>

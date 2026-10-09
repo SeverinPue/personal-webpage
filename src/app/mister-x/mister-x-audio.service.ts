@@ -89,6 +89,37 @@ export class MisterXAudioService {
     } catch (e) {}
   }
 
+    // Siren alert when Mister X is within 10m
+  public playCatchAlertSound() {
+    if (!this.soundEnabled) return;
+    try {
+      this.initAudio();
+      if (!this.audioCtx) return;
+
+      const now = this.audioCtx.currentTime;
+      [800, 1200, 800, 1200].forEach((freq, idx) => {
+        const osc = this.audioCtx!.createOscillator();
+        const gain = this.audioCtx!.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.15);
+
+        gain.gain.setValueAtTime(0.25, now + idx * 0.15);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.15 + 0.14);
+
+        osc.connect(gain);
+        gain.connect(this.audioCtx!.destination);
+
+        osc.start(now + idx * 0.15);
+        osc.stop(now + idx * 0.15 + 0.14);
+      });
+
+      if ('vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200, 100, 400]);
+      }
+    } catch (e) {}
+  }
+
   // Catch / Game won alert sound
   public playCatchSound() {
     if (!this.soundEnabled) return;
