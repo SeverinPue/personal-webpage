@@ -1,18 +1,1 @@
-<!-- Login-Schutz: Nur mit berechtigtem Google-Account zugänglich -->
-<app-login-gate *ngIf="!(authService.currentUser$ | async)"></app-login-gate>
-
-<!-- Geschützter Inhalt nach erfolgreichem Login -->
-<div *ngIf="(authService.currentUser$ | async) as user" class="site-wrapper">
-  <!-- Dezent eingeblendete Status- und Abmeldeleiste oben rechts -->
-  <header class="top-auth-bar">
-    <div class="user-badge">
-      <span class="active-indicator"></span>
-      <span class="email-label">{{ user.email }}</span>
-    </div>
-    <button (click)="logout()" class="logout-btn" title="Vom geschützten Bereich abmelden">
-      Abmelden
-    </button>
-  </header>
-
-  <router-outlet></router-outlet>
-</div>
+<router-outlet></router-outlet>
