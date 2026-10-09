@@ -1231,7 +1231,34 @@
 
     &.is-me {
       .marker-badge {
-        box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.4), 0 0 15px rgba(2, 132, 199, 0.8);
+        box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.45), 0 0 15px rgba(2, 132, 199, 0.85);
+      }
+      .marker-label {
+        background: #0284c7;
+        color: #ffffff;
+        border-color: #38bdf8;
+      }
+    }
+
+    &.is-detective:not(.is-me) {
+      .marker-badge {
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35), 0 0 12px rgba(16, 185, 129, 0.7);
+      }
+      .marker-label {
+        background: #065f46;
+        color: #ecfdf5;
+        border-color: #10b981;
+      }
+    }
+
+    &.is-misterx {
+      .marker-badge {
+        box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.45), 0 0 15px rgba(239, 68, 68, 0.85);
+      }
+      .marker-label {
+        background: #991b1b;
+        color: #fef2f2;
+        border-color: #ef4444;
       }
     }
   }

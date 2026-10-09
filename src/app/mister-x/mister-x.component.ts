@@ -62,6 +62,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   public currentLng: number | null = null;
   private watchPositionId: number | null = null;
   private lastPosBroadcastTime = 0;
+  private locationHeartbeatInterval: any = null;
 
   // Simulator / Test Mode
   public simulationMode = false;
@@ -88,7 +89,6 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   private playerMarkers = new Map<string, L.Marker>();
   private pingMarkers: L.Marker[] = [];
   private pingTrailPolyline: L.Polyline | null = null;
-  private userAccuracyCircle: L.Circle | null = null;
 
   // Subscriptions
   private subs: Subscription[] = [];
@@ -131,6 +131,10 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
           this.settings.centerLng = pos.coords.longitude;
           this.currentLat = pos.coords.latitude;
           this.currentLng = pos.coords.longitude;
+          if (this.myPlayer) {
+            this.myPlayer.lat = pos.coords.latitude;
+            this.myPlayer.lng = pos.coords.longitude;
+          }
           this.updateLobbyMapCenter();
         },
         (err) => console.log('Initial geolocation hint:', err.message),
@@ -157,6 +161,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     this.stopGpsTracking();
     this.stopPingTimer();
+    this.stopLocationHeartbeat();
     this.network.disconnect();
     this.subs.forEach(s => s.unsubscribe());
     if (this.gameMap) this.gameMap.remove();
@@ -240,6 +245,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   public leaveLobby() {
     this.stopGpsTracking();
     this.stopPingTimer();
+    this.stopLocationHeartbeat();
     this.network.disconnect();
     this.viewState = 'JOIN_SCREEN';
     this.gameStatus = 'LOBBY';
@@ -441,6 +447,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     if (me) {
       this.myRole = me.role;
       this.myPlayer = me;
+      this.network.updatePlayer(this.myPlayer);
     }
 
     this.audio.playStartSound();
@@ -448,6 +455,12 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.nextPingTimestamp = nextPingTimestamp;
     this.startPingTimer();
+
+    // Start continuous location heartbeat & broadcast current position immediately
+    this.startLocationHeartbeat();
+    if (this.currentLat && this.currentLng && this.myPlayer) {
+      this.network.publishLocation(this.currentLat, this.currentLng, this.gpsAccuracy || 10, this.myPlayer.heading);
+    }
 
     setTimeout(() => {
       this.initGameMap();
@@ -494,10 +507,23 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       dashArray: '4, 8'
     }).addTo(this.gameMap);
 
+    // Clean up stale markers and render all current player markers immediately
+    this.playerMarkers.forEach(m => m.remove());
+    this.playerMarkers.clear();
+    this.renderAllPlayerMarkers();
+
+    // Restore any existing pings
+    if (this.pings.length > 0) {
+      this.pingMarkers.forEach(m => m.remove());
+      this.pingMarkers = [];
+      this.pings.forEach(p => this.addPingMarkerToMap(p));
+    }
+
     // Trigger initial render
     setTimeout(() => {
       this.gameMap?.invalidateSize();
       this.centerOnMe();
+      this.renderAllPlayerMarkers();
     }, 300);
   }
 
@@ -560,6 +586,27 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.watchPositionId !== null) {
       navigator.geolocation.clearWatch(this.watchPositionId);
       this.watchPositionId = null;
+    }
+  }
+
+  private startLocationHeartbeat() {
+    this.stopLocationHeartbeat();
+    this.locationHeartbeatInterval = setInterval(() => {
+      if (this.currentLat && this.currentLng && this.myPlayer && this.network.isConnected()) {
+        this.network.publishLocation(
+          this.currentLat,
+          this.currentLng,
+          this.gpsAccuracy || 10,
+          this.myPlayer.heading
+        );
+      }
+    }, 3000);
+  }
+
+  private stopLocationHeartbeat() {
+    if (this.locationHeartbeatInterval) {
+      clearInterval(this.locationHeartbeatInterval);
+      this.locationHeartbeatInterval = null;
     }
   }
 
@@ -767,6 +814,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.lastPing = null;
     this.canCatchMisterX = false;
     this.misterXCaughtBy = '';
+    this.stopLocationHeartbeat();
 
     // Clear map markers
     this.pingMarkers.forEach(m => m.remove());
@@ -774,6 +822,8 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.pingTrailPolyline) {
       this.pingTrailPolyline.setLatLngs([]);
     }
+    this.playerMarkers.forEach(m => m.remove());
+    this.playerMarkers.clear();
 
     this.network.publishEvent({
       type: 'END_GAME',
@@ -844,6 +894,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
           if (this.players[0].id === this.playerId) {
             this.isHost = true;
             this.myPlayer!.isHost = true;
+            this.network.updatePlayer(this.myPlayer!);
             this.showToast('Du bist jetzt der neue Host!');
           }
         }
@@ -899,6 +950,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
         this.pings = [];
         this.lastPing = null;
         this.stopPingTimer();
+        this.stopLocationHeartbeat();
         this.showToast('Host hat das Spiel beendet / neue Runde gestartet.');
         setTimeout(() => this.initLobbyMap(), 200);
         break;
@@ -906,44 +958,88 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private handleIncomingLocation(loc: { playerId: string; lat: number; lng: number; accuracy?: number; heading?: number }) {
+  private handleIncomingLocation(loc: { playerId: string; playerName?: string; role?: Role; lat: number; lng: number; accuracy?: number; heading?: number }) {
     if (loc.playerId === this.playerId) return;
 
-    const player = this.players.find(p => p.id === loc.playerId);
-    if (player) {
+    let player = this.players.find(p => p.id === loc.playerId);
+    if (!player) {
+      player = {
+        id: loc.playerId,
+        name: loc.playerName || 'Detektiv',
+        role: loc.role || 'DETECTIVE',
+        lat: loc.lat,
+        lng: loc.lng,
+        accuracy: loc.accuracy,
+        heading: loc.heading,
+        lastUpdated: Date.now(),
+        isHost: false
+      };
+      this.players.push(player);
+    } else {
       player.lat = loc.lat;
       player.lng = loc.lng;
       player.accuracy = loc.accuracy;
       player.heading = loc.heading;
       player.lastUpdated = Date.now();
-
-      // Check out of bounds
-      const distFromCenter = this.calculateDistance(loc.lat, loc.lng, this.settings.centerLat, this.settings.centerLng);
-      player.isOutOfBounds = distFromCenter > this.settings.radiusMeters;
-
-      // Update map marker if visible according to rules:
-      // - Detectives see other Detectives.
-      // - Detectives DO NOT see live Mister X (only pings!).
-      // - Mister X sees all Detectives!
-      const shouldShow = (this.myRole === 'MISTER_X') || (player.role === 'DETECTIVE') || (this.gameStatus !== 'PLAYING');
-
-      if (shouldShow) {
-        this.updatePlayerMapMarker(player);
-      } else {
-        const m = this.playerMarkers.get(player.id);
-        if (m) {
-          m.remove();
-          this.playerMarkers.delete(player.id);
-        }
+      if (loc.role && player.role === 'UNASSIGNED') {
+        player.role = loc.role;
       }
+    }
 
-      if (this.gameStatus === 'PLAYING') {
-        this.evaluateCatchRadius();
+    // Check out of bounds
+    const distFromCenter = this.calculateDistance(loc.lat, loc.lng, this.settings.centerLat, this.settings.centerLng);
+    player.isOutOfBounds = distFromCenter > this.settings.radiusMeters;
+
+    // Visibility rules:
+    // - Detective sees themselves and ALL other Detectives live.
+    // - Detective DOES NOT see Mister X live (only periodic pings!).
+    // - Mister X sees themselves and ALL Detectives live.
+    const isMisterX = player.role === 'MISTER_X';
+    const shouldShow = (this.myRole === 'MISTER_X') || (!isMisterX) || (this.gameStatus !== 'PLAYING');
+
+    if (shouldShow) {
+      this.updatePlayerMapMarker(player);
+    } else {
+      const m = this.playerMarkers.get(player.id);
+      if (m) {
+        m.remove();
+        this.playerMarkers.delete(player.id);
       }
+    }
+
+    if (this.gameStatus === 'PLAYING') {
+      this.evaluateCatchRadius();
     }
   }
 
   // --- MAP MARKER UTILS ---
+
+  private renderAllPlayerMarkers() {
+    if (!this.gameMap) return;
+
+    // Render self marker first
+    if (this.myPlayer && this.myPlayer.lat !== undefined && this.myPlayer.lng !== undefined) {
+      this.updatePlayerMapMarker(this.myPlayer);
+    }
+
+    // Render other players
+    this.players.forEach(p => {
+      if (p.id === this.playerId) return;
+      if (p.lat !== undefined && p.lng !== undefined) {
+        const isMisterX = p.role === 'MISTER_X';
+        const shouldShow = (this.myRole === 'MISTER_X') || (!isMisterX) || (this.gameStatus !== 'PLAYING');
+        if (shouldShow) {
+          this.updatePlayerMapMarker(p);
+        } else {
+          const m = this.playerMarkers.get(p.id);
+          if (m) {
+            m.remove();
+            this.playerMarkers.delete(p.id);
+          }
+        }
+      }
+    });
+  }
 
   private updatePlayerMapMarker(player: Player) {
     if (!this.gameMap || player.lat === undefined || player.lng === undefined) return;
@@ -951,15 +1047,25 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     const isMe = player.id === this.playerId;
     const isMisterX = player.role === 'MISTER_X';
 
+    // In game, detectives must never see Mister X live
+    if (this.gameStatus === 'PLAYING' && this.myRole === 'DETECTIVE' && isMisterX && !isMe) {
+      const existing = this.playerMarkers.get(player.id);
+      if (existing) {
+        existing.remove();
+        this.playerMarkers.delete(player.id);
+      }
+      return;
+    }
+
     let marker = this.playerMarkers.get(player.id);
     const latlng: L.LatLngTuple = [player.lat, player.lng];
 
-    const color = isMisterX ? '#e74c3c' : (isMe ? '#2980b9' : '#27ae60');
+    const color = isMisterX ? '#e74c3c' : (isMe ? '#0284c7' : '#10b981');
     const roleIcon = isMisterX ? '🎩' : '🕵️';
-    const label = isMe ? `${player.name} (Du)` : player.name;
+    const label = isMe ? `${player.name} (Du)` : (isMisterX ? player.name : `${player.name} (Detektiv)`);
 
     const html = `
-      <div class="player-custom-marker ${isMe ? 'is-me' : ''}">
+      <div class="player-custom-marker ${isMe ? 'is-me' : ''} ${isMisterX ? 'is-misterx' : 'is-detective'}">
         <div class="marker-badge" style="background:${color};">
           <span class="marker-icon">${roleIcon}</span>
         </div>
@@ -970,12 +1076,12 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     const icon = L.divIcon({
       className: 'mx-custom-player-icon',
       html: html,
-      iconSize: [40, 50],
-      iconAnchor: [20, 42]
+      iconSize: [60, 52],
+      iconAnchor: [30, 42]
     });
 
     if (!marker) {
-      marker = L.marker(latlng, { icon }).addTo(this.gameMap);
+      marker = L.marker(latlng, { icon, zIndexOffset: isMe ? 1000 : 500 }).addTo(this.gameMap);
       this.playerMarkers.set(player.id, marker);
     } else {
       marker.setLatLng(latlng);
@@ -1023,6 +1129,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.currentLat = lat;
     this.currentLng = lng;
     this.onPositionUpdate(lat, lng, 10, 0);
+    this.network.publishLocation(lat, lng, 10, 0);
   }
 
   // --- MATH & UTILITIES ---

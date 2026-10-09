@@ -1,21 +1,21 @@
 import { Injectable, NgZone } from '@angular/core';
-import { BehaviorSubject, Subject } from 'rxjs';
-import { connect, MqttClient } from 'mqtt';
+import { Subject } from 'rxjs';
+import * as mqtt from 'mqtt';
 import { GameEventMessage, Player } from './mister-x.types';
 
 @Injectable({
   providedIn: 'root'
 })
 export class MisterXNetworkService {
-  private client: MqttClient | null = null;
-  private roomCode: string | null = null;
+  private client: mqtt.MqttClient | null = null;
+  private roomCode: string = '';
   private currentPlayer: Player | null = null;
 
-  public connected$ = new BehaviorSubject<boolean>(false);
   public event$ = new Subject<GameEventMessage>();
-  public location$ = new Subject<{ playerId: string; lat: number; lng: number; accuracy?: number; heading?: number }>();
-  public error$ = new Subject<string>();
+  public location$ = new Subject<{ playerId: string; playerName?: string; role?: any; lat: number; lng: number; accuracy?: number; heading?: number; timestamp?: number }>();
+  public connected$ = new Subject<boolean>();
 
+  // Free public WebSocket MQTT brokers with fallback
   private brokers = [
     'wss://broker.hivemq.com:8884/mqtt',
     'wss://broker.emqx.io:8084/mqtt'
@@ -34,12 +34,20 @@ export class MisterXNetworkService {
     });
   }
 
+  public updatePlayer(player: Player) {
+    this.currentPlayer = player;
+  }
+
+  public isConnected(): boolean {
+    return !!(this.client && this.client.connected);
+  }
+
   private tryConnectBroker(brokerIndex: number, resolve: () => void, reject: (err: any) => void) {
     const brokerUrl = this.brokers[brokerIndex % this.brokers.length];
     const clientId = `misterx_${this.currentPlayer?.id || Math.random().toString(36).substring(2, 9)}_${Date.now().toString(36)}`;
 
     try {
-      this.client = connect(brokerUrl, {
+      this.client = mqtt.connect(brokerUrl, {
         clientId,
         clean: true,
         connectTimeout: 7000,
@@ -145,6 +153,8 @@ export class MisterXNetworkService {
     const topic = `misterx/game/${this.roomCode}/pos`;
     const payload = {
       playerId: this.currentPlayer.id,
+      playerName: this.currentPlayer.name,
+      role: this.currentPlayer.role,
       lat,
       lng,
       accuracy,
@@ -170,7 +180,5 @@ export class MisterXNetworkService {
       } catch (e) {}
       this.client = null;
     }
-    this.connected$.next(false);
-    this.roomCode = null;
   }
 }
