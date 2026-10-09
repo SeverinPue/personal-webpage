@@ -79,24 +79,16 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   public connectionError = '';
   public connecting = false;
 
-  // Map theme: Dark Tactical Radar vs Daylight Street
-  public mapTheme: 'dark' | 'light' = 'dark';
-  private readonly darkTileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-  private readonly lightTileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-  private readonly darkTileAttr = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
-  private readonly lightTileAttr = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-
   // Leaflet maps & layers
   private gameMap: L.Map | null = null;
   private lobbyMap: L.Map | null = null;
-  private lobbyTileLayer: L.TileLayer | null = null;
-  private gameTileLayer: L.TileLayer | null = null;
   private boundaryCircle: L.Circle | null = null;
   private lobbyBoundaryCircle: L.Circle | null = null;
   private lobbyCenterMarker: L.Marker | null = null;
   private playerMarkers = new Map<string, L.Marker>();
   private pingMarkers: L.Marker[] = [];
   private pingTrailPolyline: L.Polyline | null = null;
+  private userAccuracyCircle: L.Circle | null = null;
 
   // Subscriptions
   private subs: Subscription[] = [];
@@ -159,11 +151,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    if (this.viewState === 'LOBBY') {
-      setTimeout(() => this.initLobbyMap(), 100);
-    } else if (this.viewState === 'GAME') {
-      setTimeout(() => this.initGameMap(), 100);
-    }
+    // Initial map setup if needed
   }
 
   ngOnDestroy(): void {
@@ -171,30 +159,17 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.stopPingTimer();
     this.network.disconnect();
     this.subs.forEach(s => s.unsubscribe());
-
-    if (this.lobbyMap) {
-      this.lobbyMap.remove();
-      this.lobbyMap = null;
-    }
-    if (this.gameMap) {
-      this.gameMap.remove();
-      this.gameMap = null;
-    }
+    if (this.gameMap) this.gameMap.remove();
+    if (this.lobbyMap) this.lobbyMap.remove();
   }
 
-  // --- LOBBY / ROOM CREATION & JOINING ---
+  // --- LOBBY CREATION & JOINING ---
 
-  public async createLobby() {
-    if (!this.playerName.trim()) {
-      this.showToast('Bitte gib einen Spielernamen ein!');
-      return;
-    }
-
+  public createLobby() {
+    if (!this.playerName.trim()) return;
     localStorage.setItem('mx_player_name', this.playerName.trim());
-    this.connecting = true;
-    this.connectionError = '';
 
-    // Generate readable 5-character code
+    // Generate clean 5-digit room code
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
     for (let i = 0; i < 5; i++) {
@@ -202,30 +177,21 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.roomCode = code;
     this.isHost = true;
-
-    await this.joinRoomWithRole();
+    this.joinRoomInternal();
   }
 
-  public async joinLobby() {
-    if (!this.playerName.trim()) {
-      this.showToast('Bitte gib einen Spielernamen ein!');
-      return;
-    }
-    if (!this.roomCode.trim()) {
-      this.showToast('Bitte gib den 5-stelligen Lobby-Code ein!');
-      return;
-    }
-
+  public joinLobby() {
+    if (!this.playerName.trim() || !this.roomCode.trim()) return;
     localStorage.setItem('mx_player_name', this.playerName.trim());
-    this.connecting = true;
-    this.connectionError = '';
     this.roomCode = this.roomCode.toUpperCase().trim();
     this.isHost = false;
-
-    await this.joinRoomWithRole();
+    this.joinRoomInternal();
   }
 
-  private async joinRoomWithRole() {
+  private async joinRoomInternal() {
+    this.connecting = true;
+    this.connectionError = '';
+
     this.myPlayer = {
       id: this.playerId,
       name: this.playerName.trim(),
@@ -307,7 +273,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     const url = this.getShareUrl();
     if (navigator.share) {
       navigator.share({
-        title: 'Mister X Scotland Yard Fahndung!',
+        title: 'Mister X Jagd!',
         text: `Komm in meine Reallife Mister X Runde (Code: ${this.roomCode})!`,
         url: url
       }).catch(() => {});
@@ -324,29 +290,6 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  // --- MAP THEME TOGGLE (Dark Tactical Surveillance vs Light Street) ---
-
-  public toggleMapTheme() {
-    this.mapTheme = this.mapTheme === 'dark' ? 'light' : 'dark';
-    this.applyTileTheme(this.lobbyMap, this.lobbyTileLayer, (layer) => this.lobbyTileLayer = layer);
-    this.applyTileTheme(this.gameMap, this.gameTileLayer, (layer) => this.gameTileLayer = layer);
-    this.showToast(`Kartenstil: ${this.mapTheme === 'dark' ? 'Taktische Nacht-Überwachung' : 'Tageslicht / Stadtplan'}`);
-  }
-
-  private applyTileTheme(map: L.Map | null, currentLayer: L.TileLayer | null, setLayer: (layer: L.TileLayer) => void) {
-    if (!map) return;
-    if (currentLayer) {
-      map.removeLayer(currentLayer);
-    }
-    const isDark = this.mapTheme === 'dark';
-    const newLayer = L.tileLayer(isDark ? this.darkTileUrl : this.lightTileUrl, {
-      maxZoom: isDark ? 20 : 19,
-      subdomains: isDark ? 'abcd' : 'abc',
-      attribution: isDark ? this.darkTileAttr : this.lightTileAttr
-    }).addTo(map);
-    setLayer(newLayer);
-  }
-
   // --- HOST SETTINGS & LOBBY MAP ---
 
   private initLobbyMap() {
@@ -358,29 +301,26 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       zoomControl: true
     });
 
-    this.applyTileTheme(this.lobbyMap, null, (layer) => this.lobbyTileLayer = layer);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(this.lobbyMap);
 
     this.lobbyBoundaryCircle = L.circle([this.settings.centerLat, this.settings.centerLng], {
       radius: this.settings.radiusMeters,
-      color: '#ef4444',
-      fillColor: '#ef4444',
-      fillOpacity: 0.12,
-      weight: 2.5,
-      dashArray: '6, 8'
+      color: '#bd4913',
+      fillColor: '#bd4913',
+      fillOpacity: 0.15,
+      weight: 3,
+      dashArray: '6, 6'
     }).addTo(this.lobbyMap);
 
-    // Tactical Anchor Center Pin
+    // Center pin icon
     const centerIcon = L.divIcon({
-      className: 'mx-tactical-center-marker',
-      html: `
-        <div class="tactical-anchor">
-          <div class="anchor-radar-ring"></div>
-          <div class="anchor-core">🎯</div>
-          <span class="anchor-label">SEKTOR-ZENTRUM</span>
-        </div>
-      `,
-      iconSize: [36, 36],
-      iconAnchor: [18, 18]
+      className: 'mx-center-marker',
+      html: `<div style="background:#bd4913; width:16px; height:16px; border-radius:50%; border:3px solid white; box-shadow:0 0 8px rgba(0,0,0,0.5);"></div>`,
+      iconSize: [16, 16],
+      iconAnchor: [8, 8]
     });
 
     this.lobbyCenterMarker = L.marker([this.settings.centerLat, this.settings.centerLng], {
@@ -427,7 +367,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       this.settings.centerLng = this.currentLng;
       this.updateLobbyMapCenter();
       this.broadcastSettings();
-      this.showToast('Sektor-Zentrum auf deinen aktuellen GPS-Standort gesetzt!');
+      this.showToast('Zentrum auf deinen aktuellen GPS-Standort gesetzt!');
     } else {
       this.showToast('GPS-Standort wird noch ermittelt...');
     }
@@ -504,7 +444,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     this.audio.playStartSound();
-    this.showToast(`🚨 FAHNDUNG GESTARTET! Du bist: ${this.myRole === 'MISTER_X' ? '🎩 MISTER X (ZIELPERSON)' : '🕵️ DETEKTIV (SCOTLAND YARD)'}`);
+    this.showToast(`Spiel gestartet! Du bist: ${this.myRole === 'MISTER_X' ? '🎩 MISTER X' : '🕵️ DETEKTIV'}`);
 
     this.nextPingTimestamp = nextPingTimestamp;
     this.startPingTimer();
@@ -527,27 +467,31 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.gameMap = L.map(this.mapContainer.nativeElement, {
       center: center,
       zoom: 15,
-      zoomControl: false // Custom controls in tactical HUD
+      zoomControl: false // Custom controls in UI
     });
 
-    this.applyTileTheme(this.gameMap, null, (layer) => this.gameTileLayer = layer);
+    // Dark/tactical styled tiles or standard OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(this.gameMap);
 
-    // Boundary zone circle (tactical cordon)
+    // Boundary zone circle
     this.boundaryCircle = L.circle(center, {
       radius: this.settings.radiusMeters,
-      color: '#ef4444',
-      fillColor: '#ef4444',
-      fillOpacity: 0.08,
-      weight: 2.5,
+      color: '#094456',
+      fillColor: '#31636b',
+      fillOpacity: 0.1,
+      weight: 3,
       dashArray: '8, 8'
     }).addTo(this.gameMap);
 
-    // Red evidence thread polyline for Mister X's past pings
+    // Breadcrumb trail polyline for Mister X's past pings
     this.pingTrailPolyline = L.polyline([], {
-      color: '#f43f5e',
-      weight: 3.5,
-      opacity: 0.85,
-      dashArray: '6, 8'
+      color: '#e74c3c',
+      weight: 3,
+      opacity: 0.7,
+      dashArray: '4, 8'
     }).addTo(this.gameMap);
 
     // Trigger initial render
@@ -727,7 +671,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Audio & vibration alert!
     this.audio.playPingSound();
-    this.showToast(`🚨 PEILUNG #${record.pingNumber}: Mister X Position aufgedeckt!`);
+    this.showToast(`🚨 PING #${record.pingNumber}: Mister X wurde geortet!`);
 
     // Add marker on Leaflet map
     this.addPingMarkerToMap(record);
@@ -741,32 +685,25 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   private addPingMarkerToMap(record: PingRecord) {
     if (!this.gameMap) return;
 
-    // Scotland Yard Sonar Beacon Marker
+    // Stylized Sonar Ping marker
     const pingHtml = `
-      <div class="scotland-yard-ping-beacon">
-        <div class="beacon-wave wave-1"></div>
-        <div class="beacon-wave wave-2"></div>
-        <div class="beacon-center">
-          <span class="beacon-hat">🎩</span>
-          <span class="beacon-num">#${record.pingNumber}</span>
-        </div>
-        <div class="beacon-label">
-          <span class="bl-tag">PEILUNG #${record.pingNumber}</span>
-          <span class="bl-time">${new Date(record.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-        </div>
+      <div class="sonar-ping-marker">
+        <div class="sonar-ring"></div>
+        <div class="sonar-ring-delay"></div>
+        <div class="sonar-core">#${record.pingNumber}</div>
       </div>
     `;
 
     const icon = L.divIcon({
       className: 'mx-ping-div-icon',
       html: pingHtml,
-      iconSize: [44, 44],
-      iconAnchor: [22, 22]
+      iconSize: [40, 40],
+      iconAnchor: [20, 20]
     });
 
     const marker = L.marker([record.lat, record.lng], { icon })
       .addTo(this.gameMap)
-      .bindPopup(`<b>Scotland Yard Peilung #${record.pingNumber}</b><br>Zeit: ${new Date(record.timestamp).toLocaleTimeString()}<br>Koordinaten: ${record.lat.toFixed(5)}, ${record.lng.toFixed(5)}`);
+      .bindPopup(`<b>Ping #${record.pingNumber}</b><br>${new Date(record.timestamp).toLocaleTimeString()}`);
 
     this.pingMarkers.push(marker);
 
@@ -819,7 +756,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.misterXCaughtBy = catcherName;
     this.audio.playCatchSound();
     this.stopPingTimer();
-    this.showToast(`🎉 VERHAFTET! Mister X wurde von Detektiv ${catcherName} geschnappt!`);
+    this.showToast(`🎉 GEFANGEN! Mister X wurde von ${catcherName} geschnappt!`);
   }
 
   public restartGame() {
@@ -837,8 +774,6 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.pingTrailPolyline) {
       this.pingTrailPolyline.setLatLngs([]);
     }
-    this.playerMarkers.forEach(m => m.remove());
-    this.playerMarkers.clear();
 
     this.network.publishEvent({
       type: 'END_GAME',
@@ -866,7 +801,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
             this.players[idx] = { ...this.players[idx], ...joinedPlayer };
           } else {
             this.players.push(joinedPlayer);
-            this.showToast(`${joinedPlayer.name} ist der Fahndung beigetreten!`);
+            this.showToast(`${joinedPlayer.name} ist beigetreten!`);
           }
 
           // If Host, respond with current state & settings
@@ -893,7 +828,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
         const leavingId = msg.senderId;
         const p = this.players.find(x => x.id === leavingId);
         if (p) {
-          this.showToast(`${p.name} hat die Fahndung verlassen.`);
+          this.showToast(`${p.name} hat die Lobby verlassen.`);
         }
         this.players = this.players.filter(x => x.id !== leavingId);
 
@@ -909,7 +844,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
           if (this.players[0].id === this.playerId) {
             this.isHost = true;
             this.myPlayer!.isHost = true;
-            this.showToast('Du bist jetzt der neue Einsatzleiter (Host)!');
+            this.showToast('Du bist jetzt der neue Host!');
           }
         }
         break;
@@ -964,7 +899,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
         this.pings = [];
         this.lastPing = null;
         this.stopPingTimer();
-        this.showToast('Einsatzleiter hat das Spiel beendet / neue Runde gestartet.');
+        this.showToast('Host hat das Spiel beendet / neue Runde gestartet.');
         setTimeout(() => this.initLobbyMap(), 200);
         break;
       }
@@ -1019,29 +954,24 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     let marker = this.playerMarkers.get(player.id);
     const latlng: L.LatLngTuple = [player.lat, player.lng];
 
-    const roleClass = isMisterX ? 'marker-misterx' : (isMe ? 'marker-me' : 'marker-detective');
+    const color = isMisterX ? '#e74c3c' : (isMe ? '#2980b9' : '#27ae60');
     const roleIcon = isMisterX ? '🎩' : '🕵️';
-    const roleTag = isMisterX ? 'MISTER X' : (isMe ? 'DU (DETEKTIV)' : 'DETEKTIV');
-    const label = player.name;
+    const label = isMe ? `${player.name} (Du)` : player.name;
 
     const html = `
-      <div class="scotland-yard-player-marker ${roleClass} ${isMe ? 'is-self' : ''}">
-        <div class="player-aura"></div>
-        <div class="player-badge">
-          <span class="p-icon">${roleIcon}</span>
+      <div class="player-custom-marker ${isMe ? 'is-me' : ''}">
+        <div class="marker-badge" style="background:${color};">
+          <span class="marker-icon">${roleIcon}</span>
         </div>
-        <div class="player-card-tag">
-          <span class="p-role-sub">${roleTag}</span>
-          <strong class="p-name">${label}</strong>
-        </div>
+        <div class="marker-label">${label}</div>
       </div>
     `;
 
     const icon = L.divIcon({
       className: 'mx-custom-player-icon',
       html: html,
-      iconSize: [48, 54],
-      iconAnchor: [24, 46]
+      iconSize: [40, 50],
+      iconAnchor: [20, 42]
     });
 
     if (!marker) {
@@ -1053,33 +983,12 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  // --- PROXIMITY STATUS HELPER ---
-
-  public getProximityInfo(): { label: string; color: string; badge: string; icon: string } {
-    if (this.distanceToMisterX === null) {
-      return { label: 'RADAR-SUCHE LÄUFT...', color: '#94a3b8', badge: 'STATUS: SUCHE', icon: '📡' };
-    }
-    if (this.distanceToMisterX <= this.settings.catchRadiusMeters) {
-      return { label: 'IN ZUGRIFFSWEITE! (< 30m)', color: '#10b981', badge: 'HAFTBEFEHL BEREIT', icon: '🚨' };
-    }
-    if (this.distanceToMisterX <= 100) {
-      return { label: 'GLÜHEND HEISS! (< 100m)', color: '#ef4444', badge: 'UNMITTELBARE NÄHE', icon: '🔥' };
-    }
-    if (this.distanceToMisterX <= 250) {
-      return { label: 'HEISSE SPUR (< 250m)', color: '#f59e0b', badge: 'IN DER NÄHE', icon: '⚡' };
-    }
-    if (this.distanceToMisterX <= 500) {
-      return { label: 'MITTLERE DISTANZ (< 500m)', color: '#38bdf8', badge: 'SEKTOR ERFASST', icon: '🔍' };
-    }
-    return { label: 'KALTE SPUR (> 500m)', color: '#64748b', badge: 'GROSSRAUM', icon: '❄️' };
-  }
-
   // --- SIMULATOR / TEST-MODUS CONTROLS ---
 
   public toggleSimulationMode() {
     this.simulationMode = !this.simulationMode;
     if (this.simulationMode) {
-      this.showToast('Test-Modus aktiv: Klicke auf die Karte oder nutze das Steuerkreuz!');
+      this.showToast('Test-Modus aktiviert: Klicke auf die Karte, um dich zu bewegen!');
       if (this.gameMap) {
         this.gameMap.on('click', (e: L.LeafletMouseEvent) => {
           if (this.simulationMode) {
@@ -1088,7 +997,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
         });
       }
     } else {
-      this.showToast('Test-Modus deaktiviert. Reallife-GPS aktiv.');
+      this.showToast('Test-Modus deaktiviert. Nutze wieder echtes GPS.');
     }
   }
 

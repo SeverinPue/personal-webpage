@@ -1,106 +1,51 @@
 <div class="misterx-root" [class.theme-misterx]="myRole === 'MISTER_X'" [class.theme-detective]="myRole === 'DETECTIVE'">
 
-  <!-- BACKGROUND TACTICAL GRID PATTERN -->
-  <div class="tactical-grid-bg"></div>
-
-  <!-- TOAST / POLICE WIRE NOTIFICATION -->
+  <!-- TOAST NOTIFICATION -->
   <div class="mx-toast" *ngIf="notificationText">
-    <div class="toast-ticker-light"></div>
-    <span class="toast-text">{{ notificationText }}</span>
+    <span>{{ notificationText }}</span>
   </div>
 
   <!-- ========================================== -->
-  <!-- 1. JOIN / START SCREEN (SCOTLAND YARD FILE) -->
+  <!-- 1. JOIN / START SCREEN                    -->
   <!-- ========================================== -->
   <div class="screen join-screen" *ngIf="viewState === 'JOIN_SCREEN'">
-    <div class="dossier-card">
-
-      <!-- Dossier Header Tab -->
-      <div class="dossier-header-bar">
-        <span class="agency-tag">METROPOLITAN POLICE • SCOTLAND YARD</span>
-        <span class="dossier-id">FALLAKTE #SY-83-X</span>
+    <div class="join-card">
+      <div class="logo-badge">
+        <span class="logo-icon">🕵️‍♂️ ⚡ 🎩</span>
       </div>
-
-      <!-- Confidential Stamped Badge -->
-      <div class="stamp-confidential">
-        <span>STRENG GEHEIM</span>
-      </div>
-
-      <!-- Scotland Yard / Mister X Emblem -->
-      <div class="emblem-wrapper">
-        <div class="emblem-ring">
-          <!-- Stylized Mister X silhouette SVG -->
-          <svg class="misterx-svg-logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="50" cy="50" r="46" stroke="#ef4444" stroke-width="2" stroke-dasharray="6 4" opacity="0.6"/>
-            <!-- Fedora hat -->
-            <path d="M22 45 C 30 42, 70 42, 78 45 C 84 46, 82 49, 70 49 C 70 49, 72 32, 50 32 C 28 32, 30 49, 30 49 C 18 49, 16 46, 22 45 Z" fill="#1e293b" stroke="#e2e8f0" stroke-width="2"/>
-            <!-- Hat band -->
-            <path d="M31 43 C 40 40, 60 40, 69 43" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
-            <!-- Dark glasses / eye shadow -->
-            <rect x="33" y="53" width="14" height="8" rx="2" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5"/>
-            <rect x="53" y="53" width="14" height="8" rx="2" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5"/>
-            <line x1="47" y1="56" x2="53" y2="56" stroke="#38bdf8" stroke-width="1.5"/>
-            <!-- Popped trench coat collar -->
-            <path d="M24 78 L 36 65 L 50 72 L 64 65 L 76 78 Z" fill="#1e293b" stroke="#94a3b8" stroke-width="2"/>
-            <!-- Tactical crosshair overlay -->
-            <circle cx="50" cy="56" r="30" stroke="#f59e0b" stroke-width="1" opacity="0.4" stroke-dasharray="2 3"/>
-            <line x1="50" y1="20" x2="50" y2="28" stroke="#f59e0b" stroke-width="1.5"/>
-            <line x1="50" y1="84" x2="50" y2="92" stroke="#f59e0b" stroke-width="1.5"/>
-            <line x1="14" y1="56" x2="22" y2="56" stroke="#f59e0b" stroke-width="1.5"/>
-            <line x1="78" y1="56" x2="86" y2="56" stroke="#f59e0b" stroke-width="1.5"/>
-          </svg>
-        </div>
-      </div>
-
       <h1 class="game-title">MISTER X</h1>
-      <p class="game-subtitle">SCOTLAND YARD • REALLIFE GPS FAHNDUNG</p>
+      <p class="game-subtitle">Reallife GPS Jagd im echten Leben</p>
 
-      <div class="mission-status-pill">
-        <span class="pulse-dot red"></span>
-        <span>STATUS: ZIELPERSON FLÜCHTIG IM SEKTOR</span>
-      </div>
-
-      <!-- Player Name Input -->
       <div class="form-group">
-        <label for="pName">
-          <span class="lbl-icon">👤</span> Dein Agenten- oder Spielername
-        </label>
-        <div class="input-wrapper">
-          <input
-            id="pName"
-            type="text"
-            class="mx-input"
-            placeholder="z.B. Sherlock, Bond, Mia, Jax..."
-            [(ngModel)]="playerName"
-            maxlength="20"
-          />
-        </div>
+        <label for="pName">Dein Spielername</label>
+        <input
+          id="pName"
+          type="text"
+          class="mx-input"
+          placeholder="z.B. James, Sherlock, Mia..."
+          [(ngModel)]="playerName"
+          maxlength="20"
+        />
       </div>
 
       <!-- Action buttons -->
       <div class="action-grid">
         <button class="mx-btn btn-primary" (click)="createLobby()" [disabled]="!playerName.trim() || connecting">
-          <span class="btn-icon">👑</span>
-          <div class="btn-text-col">
-            <span class="btn-headline">Neue Ermittlung starten</span>
-            <span class="btn-subtext">Als Einsatzleiter eine neue Lobby erstellen</span>
-          </div>
+          <span>👑 Neue Lobby erstellen</span>
         </button>
 
         <div class="join-divider">
-          <span class="wire-tape">ODER FAHNDUNGS-CODE EINGEBEN</span>
+          <span>ODER EINER LOBBY BEITRETEN</span>
         </div>
 
         <div class="join-box">
-          <div class="code-input-wrapper">
-            <input
-              type="text"
-              class="mx-input code-input"
-              placeholder="CODE (z.B. X7K9P)"
-              [(ngModel)]="roomCode"
-              maxlength="6"
-            />
-          </div>
+          <input
+            type="text"
+            class="mx-input code-input"
+            placeholder="5-stelliger Code (z.B. X7K9P)"
+            [(ngModel)]="roomCode"
+            maxlength="6"
+          />
           <button class="mx-btn btn-secondary" (click)="joinLobby()" [disabled]="!playerName.trim() || !roomCode.trim() || connecting">
             <span>🚀 Beitreten</span>
           </button>
@@ -111,64 +56,14 @@
         ⚠️ {{ connectionError }}
       </div>
 
-      <!-- SCOTLAND YARD TICKETS LEGEND -->
-      <div class="tickets-legend">
-        <span class="legend-title">SCOTLAND YARD TRANSPORT-TICKETS</span>
-        <div class="ticket-cards-row">
-          <div class="ticket-card ticket-taxi" title="Taxi: Kurze Wege im Sektor">
-            <span class="t-icon">🚖</span>
-            <strong class="t-name">TAXI</strong>
-            <span class="t-desc">Kurzstrecke</span>
-          </div>
-          <div class="ticket-card ticket-bus" title="Bus: Hauptverkehrsadern">
-            <span class="t-icon">🚌</span>
-            <strong class="t-name">BUS</strong>
-            <span class="t-desc">Verbindungen</span>
-          </div>
-          <div class="ticket-card ticket-underground" title="U-Bahn: Schnelle Flucht">
-            <span class="t-icon">🚇</span>
-            <strong class="t-name">U-BAHN</strong>
-            <span class="t-desc">Fernsprung</span>
-          </div>
-          <div class="ticket-card ticket-black" title="Black Ticket: Mister X Geheimzug">
-            <span class="t-icon">🎩</span>
-            <strong class="t-name">BLACK</strong>
-            <span class="t-desc">Schattenzug</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- HOW TO PLAY / BRIEFING -->
       <div class="game-how-to">
-        <h4>📋 Einsatz-Briefing: Wie die Jagd funktioniert</h4>
-        <div class="briefing-item">
-          <div class="brief-num">1</div>
-          <div class="brief-content">
-            <strong>Echte GPS-Ortung im Freien:</strong>
-            <p>Ihr bewegt euch im echten Leben zu Fuß durch die Straßen und Parks eurer Stadt.</p>
-          </div>
-        </div>
-        <div class="briefing-item">
-          <div class="brief-num">2</div>
-          <div class="brief-content">
-            <strong>Der Scotland Yard Sperrbezirk:</strong>
-            <p>Der Einsatzleiter definiert die Spielzone auf der Karte. Wer sie verlässt, wird gewarnt!</p>
-          </div>
-        </div>
-        <div class="briefing-item">
-          <div class="brief-num">3</div>
-          <div class="brief-content">
-            <strong>Mister X Peilsignale (alle 3 Min):</strong>
-            <p>Mister X ist unsichtbar – außer alle X Minuten! Dann schlägt sein Peilsender an und deckt seinen Standort auf.</p>
-          </div>
-        </div>
-        <div class="briefing-item">
-          <div class="brief-num">4</div>
-          <div class="brief-content">
-            <strong>Der Zugriff (unter 30 Meter):</strong>
-            <p>Die Detektive müssen Mister X einkreisen und auf unter 30 Meter herankommen, um ihn zu verhaften!</p>
-          </div>
-        </div>
+        <h4>📖 So funktioniert's:</h4>
+        <ul>
+          <li><strong>Echtes GPS:</strong> Ihr bewegt euch draußen zu Fuß in der Stadt/Nachbarschaft.</li>
+          <li><strong>Der Umkreis:</strong> Der Owner bestimmt den Spielbereich auf der Karte.</li>
+          <li><strong>Alle 3 Minuten:</strong> Mister X sendet einen automatischen GPS-Ping für alle Detektive!</li>
+          <li><strong>Das Ziel:</strong> Die Detektive müssen Mister X aufspüren und auf unter 30 Meter fangen!</li>
+        </ul>
       </div>
 
       <div class="back-link">
@@ -178,27 +73,15 @@
   </div>
 
   <!-- ========================================== -->
-  <!-- 2. LOBBY WAITING SCREEN (COMMAND CENTER)  -->
+  <!-- 2. LOBBY WAITING SCREEN                   -->
   <!-- ========================================== -->
   <div class="screen lobby-screen" *ngIf="viewState === 'LOBBY'">
     <header class="lobby-header">
-      <div class="command-brand">
-        <span class="scotland-crest">🏛️</span>
-        <div class="command-title-box">
-          <span class="sub-brand">SCOTLAND YARD • TACTICAL HQ</span>
-          <strong class="main-brand">FAHNDUNGS-ZENTRALE</strong>
-        </div>
-      </div>
-
       <div class="room-code-tag">
-        <span class="code-label">FALL-CODE:</span>
+        <span class="code-label">LOBBY CODE:</span>
         <strong class="code-value">{{ roomCode }}</strong>
       </div>
-
       <div class="header-actions">
-        <button class="mini-btn" (click)="toggleMapTheme()" title="Karten-Stil wechseln">
-          <span>{{ mapTheme === 'dark' ? '☀️ Tag' : '🌙 Radar' }}</span>
-        </button>
         <button class="mini-btn" (click)="shareInvite()" title="Einladen">
           <span>📤 Teilen</span>
         </button>
@@ -208,8 +91,8 @@
         <button class="mini-btn" (click)="showQrModal = true" title="QR-Code">
           <span>📱 QR-Code</span>
         </button>
-        <button class="mini-btn btn-danger" (click)="leaveLobby()" title="Ermittlung abbrechen">
-          <span>🚪 Verlassen</span>
+        <button class="mini-btn btn-danger" (click)="leaveLobby()" title="Verlassen">
+          <span>Verlassen</span>
         </button>
       </div>
     </header>
@@ -218,12 +101,9 @@
       <!-- Left Column: Map & Range Settings (Host) -->
       <div class="lobby-settings-panel">
         <div class="panel-section">
-          <div class="section-title-row">
-            <h3>📍 Sperrbezirk & Spielzone</h3>
-            <span class="theme-badge">{{ mapTheme === 'dark' ? 'SURVEILLANCE RADAR' : 'STANDARD MAP' }}</span>
-          </div>
+          <h3>📍 Spielbereich & Umkreis (Range)</h3>
           <p class="hint-text">
-            {{ isHost ? 'Klicke auf die Karte oder ziehe den Zielpin, um das Zentrum der Fahndungszone festzulegen.' : 'Der Einsatzleiter legt das Fahndungsgebiet fest.' }}
+            {{ isHost ? 'Klicke auf die Karte oder ziehe den Pin, um das Zentrum festzulegen.' : 'Der Host definiert den Spielbereich.' }}
           </p>
 
           <!-- Interactive preview map -->
@@ -233,15 +113,15 @@
 
           <div class="center-gps-row" *ngIf="isHost">
             <button class="mx-btn btn-small" (click)="setCenterToMyGps()">
-              🎯 Meinen aktuellen GPS-Standort als Zentrum setzen
+              📍 Mein aktueller Standort als Zentrum
             </button>
           </div>
 
           <!-- Radius Selector -->
           <div class="setting-item" *ngIf="isHost">
             <div class="setting-label-row">
-              <span>Sperrkreis-Radius (Abriegelung):</span>
-              <strong class="highlight-val">{{ settings.radiusMeters >= 1000 ? (settings.radiusMeters / 1000) + ' km' : settings.radiusMeters + ' m' }}</strong>
+              <span>Umkreis-Radius:</span>
+              <strong>{{ settings.radiusMeters >= 1000 ? (settings.radiusMeters / 1000) + ' km' : settings.radiusMeters + ' m' }}</strong>
             </div>
             <div class="preset-buttons">
               <button [class.active]="settings.radiusMeters === 300" (click)="updateRadius(300)">300m</button>
@@ -256,8 +136,8 @@
           <!-- Ping Interval Selector -->
           <div class="setting-item" *ngIf="isHost">
             <div class="setting-label-row">
-              <span>Mister X Peilsignal-Intervall:</span>
-              <strong class="highlight-val">{{ settings.pingIntervalSeconds / 60 }} Min</strong>
+              <span>Mister X Ping-Intervall:</span>
+              <strong>{{ settings.pingIntervalSeconds / 60 }} Minuten</strong>
             </div>
             <div class="preset-buttons">
               <button [class.active]="settings.pingIntervalSeconds === 60" (click)="updatePingInterval(60)">1 Min</button>
@@ -270,11 +150,11 @@
           <!-- Mister X Assignment -->
           <div class="setting-item" *ngIf="isHost">
             <div class="setting-label-row">
-              <span>Mister X (Zielperson) Zuweisung:</span>
-              <strong class="highlight-val">{{ settings.misterXPlayerId ? 'Manuell gewählt' : 'Zufällige Auslosung' }}</strong>
+              <span>Mister X Rolle:</span>
+              <strong>{{ settings.misterXPlayerId ? 'Ausgewählt' : 'Zufällig auslosen' }}</strong>
             </div>
             <select class="mx-select" [(ngModel)]="settings.misterXPlayerId" (change)="broadcastSettings()">
-              <option value="">🎲 Zufällige Auslosung beim Start</option>
+              <option value="">🎲 Zufälliger Spieler beim Start</option>
               <option *ngFor="let p of players" [value]="p.id">🎩 {{ p.name }} {{ p.id === playerId ? '(Du)' : '' }}</option>
             </select>
           </div>
@@ -285,24 +165,20 @@
       <div class="lobby-players-panel">
         <div class="panel-section">
           <div class="players-header">
-            <div class="players-header-title">
-              <h3>👥 Einsatzkräfte & Verdächtige</h3>
-              <span class="count-badge">{{ players.length }} Spieler</span>
-            </div>
-            <span class="live-dot"><span class="radar-ping-dot"></span> LIVE SATELLIT</span>
+            <h3>👥 Spieler in der Lobby ({{ players.length }})</h3>
+            <span class="live-dot">LIVE</span>
           </div>
 
           <div class="player-list">
             <div class="player-card" *ngFor="let p of players" [class.is-self]="p.id === playerId">
-              <div class="player-avatar" [class.is-misterx-assigned]="p.id === settings.misterXPlayerId">
+              <div class="player-avatar">
                 {{ p.id === settings.misterXPlayerId ? '🎩' : '🕵️' }}
               </div>
               <div class="player-info">
                 <span class="player-name">{{ p.name }} {{ p.id === playerId ? '(Du)' : '' }}</span>
                 <span class="player-status">
-                  <span *ngIf="p.isHost" class="host-pill">👑 Einsatzleiter</span>
-                  <span *ngIf="p.id === settings.misterXPlayerId" class="target-pill">🎩 Zielperson</span>
-                  <span class="gps-pill" [class.active]="p.lat">🛰️ GPS Signal</span>
+                  <span *ngIf="p.isHost" class="host-pill">👑 Host / Owner</span>
+                  <span class="gps-pill" [class.active]="p.lat">📍 GPS Bereit</span>
                 </span>
               </div>
             </div>
@@ -311,17 +187,14 @@
           <!-- Host Start Button -->
           <div class="start-game-box" *ngIf="isHost">
             <button class="mx-btn btn-success btn-large" (click)="startGame()">
-              <span class="btn-siren">🚨</span>
-              <span>FAHNDUNG JETZT STARTEN!</span>
+              <span>🎮 SPIEL JETZT STARTEN</span>
             </button>
-            <p class="start-hint">Rollen werden verteilt, Peilsender aktiviert & die Jagd beginnt sofort!</p>
+            <p class="start-hint">Rollen werden verteilt & das Spiel beginnt sofort!</p>
           </div>
 
           <div class="waiting-box" *ngIf="!isHost">
-            <div class="radar-spinner">
-              <div class="spinner-sweep"></div>
-            </div>
-            <p>Warte auf Freigabe und Start durch den Einsatzleiter...</p>
+            <div class="spinner"></div>
+            <p>Warte darauf, dass der Host das Spiel startet...</p>
           </div>
         </div>
       </div>
@@ -335,16 +208,11 @@
 
     <!-- TOP TACTICAL HUD -->
     <header class="game-hud-top">
-      <div class="hud-role-pill" [class.is-misterx]="myRole === 'MISTER_X'" [class.is-detective]="myRole === 'DETECTIVE'">
-        <div class="role-icon-box">
-          <span class="role-icon">{{ myRole === 'MISTER_X' ? '🎩' : '🕵️' }}</span>
-        </div>
+      <div class="hud-role-pill" [class.is-misterx]="myRole === 'MISTER_X'">
+        <span class="role-icon">{{ myRole === 'MISTER_X' ? '🎩' : '🕵️' }}</span>
         <div class="role-texts">
-          <div class="role-title-row">
-            <strong class="role-title">{{ myRole === 'MISTER_X' ? 'MISTER X' : 'DETEKTIV' }}</strong>
-            <span class="badge-role-tag">{{ myRole === 'MISTER_X' ? 'ZIELPERSON' : 'SCOTLAND YARD' }}</span>
-          </div>
-          <span class="role-sub">{{ myRole === 'MISTER_X' ? 'Tarnung aktiv • Entkomme!' : 'Fahndung läuft • Greife zu!' }}</span>
+          <strong class="role-title">{{ myRole === 'MISTER_X' ? 'MISTER X' : 'DETEKTIV' }}</strong>
+          <span class="role-sub">{{ myRole === 'MISTER_X' ? 'Entkomme!' : 'Jage Mister X!' }}</span>
         </div>
       </div>
 
@@ -352,32 +220,29 @@
       <div class="hud-ping-widget" [class.urgent]="nextPingInSeconds <= 15">
         <div class="ping-sonar-icon">
           <div class="sonar-wave"></div>
-          <span class="sonar-emoji">📡</span>
+          📡
         </div>
         <div class="ping-countdown-block">
-          <span class="ping-label">{{ myRole === 'MISTER_X' ? 'DEINE AUFDECKUNG IN' : 'NÄCHSTER PEIL-IMPULS' }}</span>
+          <span class="ping-label">{{ myRole === 'MISTER_X' ? 'Aufdeckung in' : 'Nächster Ping in' }}</span>
           <strong class="ping-timer">{{ formatSeconds(nextPingInSeconds) }}</strong>
         </div>
       </div>
 
       <!-- Quick Action Buttons -->
       <div class="hud-tools">
-        <button class="hud-btn" (click)="centerOnMe()" title="Mein Standort">
+        <button class="hud-btn" (click)="centerOnMe()" title="Zentrieren">
           <span>🎯</span>
         </button>
-        <button class="hud-btn" (click)="fitGameZone()" title="Sperrgebiet anzeigen">
+        <button class="hud-btn" (click)="fitGameZone()" title="Ganzes Gebiet">
           <span>🗺️</span>
-        </button>
-        <button class="hud-btn" (click)="toggleMapTheme()" title="Karten-Stil">
-          <span>{{ mapTheme === 'dark' ? '☀️' : '🌙' }}</span>
         </button>
         <button class="hud-btn" (click)="toggleMute()" title="Ton an/aus">
           <span>{{ soundMuted ? '🔇' : '🔊' }}</span>
         </button>
-        <button class="hud-btn" [class.active]="showPingHistory" (click)="showPingHistory = !showPingHistory" title="Ortungsprotokoll">
+        <button class="hud-btn" [class.active]="showPingHistory" (click)="showPingHistory = !showPingHistory" title="Pings">
           <span>📜</span>
         </button>
-        <button class="hud-btn" [class.active]="showPlayerListDrawer" (click)="showPlayerListDrawer = !showPlayerListDrawer" title="Agenten & Verdächtige">
+        <button class="hud-btn" [class.active]="showPlayerListDrawer" (click)="showPlayerListDrawer = !showPlayerListDrawer" title="Spieler">
           <span>👥</span>
         </button>
       </div>
@@ -385,7 +250,7 @@
 
     <!-- OUT OF BOUNDS WARNING BANNER -->
     <div class="zone-alert-banner" *ngIf="isOutOfBounds">
-      ⚠️ SPERRBEZIRK VERLASSEN! Kehre sofort in die Spielzone zurück!
+      ⚠️ ACHTUNG: Du bist außerhalb der Spielzone! Kehre zurück!
     </div>
 
     <!-- MAIN LEAFLET MAP -->
@@ -393,70 +258,35 @@
       <div #mapContainer class="leaflet-game-map"></div>
     </div>
 
-    <!-- SCOTLAND YARD STATION TRACKER (MOVE STRIP) -->
-    <div class="hud-station-strip" *ngIf="pings.length > 0">
-      <div class="station-strip-scroll">
-        <div
-          class="station-node"
-          *ngFor="let p of pings; let idx = index"
-          [class.is-latest]="idx === pings.length - 1"
-          (click)="centerOnLastPing()"
-        >
-          <span class="st-badge">#{{ p.pingNumber }}</span>
-          <span class="st-time">{{ p.timestamp | date:'HH:mm' }}</span>
-        </div>
-        <div class="station-node next-pending">
-          <span class="st-badge">#{{ pings.length + 1 }}</span>
-          <span class="st-time">{{ formatSeconds(nextPingInSeconds) }}</span>
-        </div>
-      </div>
-    </div>
-
     <!-- BOTTOM TACTICAL STATUS BAR -->
     <footer class="game-hud-bottom">
       <div class="bottom-status-card">
-
-        <!-- DETECTIVE RADAR TELEMETRY -->
+        <!-- Detective View -->
         <ng-container *ngIf="myRole === 'DETECTIVE'">
-          <div class="detective-telemetry-row" *ngIf="lastPing">
-            <div class="telem-left">
-              <span class="telem-ping-badge">LETZTE PEILUNG #{{ lastPing.pingNumber }}</span>
-              <span class="telem-bearing" *ngIf="getDirectionToMisterX()">
-                🧭 Richtung: <strong>{{ getDirectionToMisterX() }}</strong>
-              </span>
-            </div>
-            <div class="telem-right">
-              <span class="telem-dist" *ngIf="distanceToMisterX !== null">
-                📏 Distanz: <strong>{{ distanceToMisterX }}m</strong>
-              </span>
-              <span class="proximity-indicator" [style.color]="getProximityInfo().color">
-                {{ getProximityInfo().icon }} {{ getProximityInfo().label }}
-              </span>
-            </div>
+          <div class="ping-info-row" *ngIf="lastPing">
+            <span class="ping-badge">Ping #{{ lastPing.pingNumber }}</span>
+            <span class="ping-time">{{ pings.length }} Pings bisher</span>
+            <span class="ping-dist" *ngIf="distanceToMisterX !== null">
+              📏 Distanz: <strong>{{ distanceToMisterX }}m</strong>
+              <span *ngIf="getDirectionToMisterX()"> (Richtung {{ getDirectionToMisterX() }})</span>
+            </span>
           </div>
           <div class="ping-info-row empty" *ngIf="!lastPing">
-            <span>📡 SCOTLAND YARD RADAR AKTIV — Warten auf den ersten Peil-Impuls von Mister X...</span>
+            <span>📡 Warten auf den ersten Ping von Mister X...</span>
           </div>
         </ng-container>
 
-        <!-- MISTER X STEALTH READOUT -->
+        <!-- Mister X View -->
         <ng-container *ngIf="myRole === 'MISTER_X'">
           <div class="misterx-status-row">
-            <div class="stealth-crest">
-              <span class="stealth-badge">🕶️ TARNUNG AKTIV</span>
-            </div>
-            <div class="misterx-intel-box">
-              <span class="misterx-hint" *ngIf="nextPingInSeconds > 15">
-                Deine Position ist für die Detektive unsichtbar. Wechsle Straßen und halte Abstand!
-              </span>
-              <span class="misterx-warning-urgent" *ngIf="nextPingInSeconds <= 15">
-                ⚠️ ALARM: Dein Peilsender schlägt in {{ nextPingInSeconds }}s an! Bereite dich vor!
-              </span>
-            </div>
+            <span class="stealth-badge">🕵️‍♂️ TARNUNG AKTIV</span>
+            <span class="misterx-hint">
+              {{ nextPingInSeconds <= 15 ? '⚠️ Dein Standort wird gleich aufgedeckt!' : 'Bewege dich unauffällig durch die Zone.' }}
+            </span>
           </div>
         </ng-container>
 
-        <!-- ARREST / CATCH BUTTON -->
+        <!-- CATCH BUTTON -->
         <div class="catch-action-box" *ngIf="myRole === 'DETECTIVE'">
           <button
             class="catch-btn"
@@ -464,23 +294,23 @@
             (click)="catchMisterX()"
             [disabled]="!canCatchMisterX && (distanceToMisterX === null || distanceToMisterX > settings.catchRadiusMeters)"
           >
-            <span class="catch-icon">{{ canCatchMisterX ? '🚨' : '🔒' }}</span>
+            <span class="catch-icon">🚨</span>
             <span class="catch-text">
-              {{ canCatchMisterX ? 'MISTER X VERHAFTEN! (IN REICHWEITE!)' : 'HAFTBEFEHL VOLLSTRECKEN (' + (distanceToMisterX ? distanceToMisterX + 'm entfernt, nötig: ≤' + settings.catchRadiusMeters + 'm' : 'Suchmodus') + ')' }}
+              {{ canCatchMisterX ? 'MISTER X FANGEN! (In Reichweite!)' : 'FANGEN (' + (distanceToMisterX ? distanceToMisterX + 'm entfernt, nötig: ≤' + settings.catchRadiusMeters + 'm' : 'Suchmodus') + ')' }}
             </span>
           </button>
         </div>
 
-        <!-- Simulator / Test Mode Controls -->
+        <!-- Simulator / Testmode Toggle -->
         <div class="sim-toggle-row">
           <button class="sim-btn" [class.active]="simulationMode" (click)="toggleSimulationMode()">
-            🕹️ Test-Modus (Klick/Steuerkreuz)
+            🕹️ Test-Modus (Klick/Tastatur)
           </button>
           <button class="sim-btn" *ngIf="isHost" (click)="triggerMisterXPing()">
-            ⚡ Sofort-Peilung auslösen
+            ⚡ Sofort-Ping auslösen
           </button>
           <button class="sim-btn btn-danger-text" *ngIf="isHost" (click)="restartGame()">
-            🛑 Runde beenden
+            🛑 Spiel beenden
           </button>
         </div>
 
@@ -490,7 +320,7 @@
             <button (click)="simulateStep('N')">⬆️ N</button>
             <div class="sim-row">
               <button (click)="simulateStep('W')">⬅️ W</button>
-              <span class="sim-center-lbl">Walk</span>
+              <span>Walk</span>
               <button (click)="simulateStep('E')">➡️ O</button>
             </div>
             <button (click)="simulateStep('S')">⬇️ S</button>
@@ -499,26 +329,21 @@
       </div>
     </footer>
 
-    <!-- PING HISTORY DRAWER (SCOTLAND YARD LOG) -->
+    <!-- PING HISTORY DRAWER -->
     <div class="drawer ping-drawer" *ngIf="showPingHistory">
       <div class="drawer-header">
-        <div class="drawer-header-left">
-          <span class="drawer-icon">📜</span>
-          <h4>SCOTLAND YARD ORTUNGSPROTOKOLL</h4>
-        </div>
+        <h4>📜 Ping-Historie ({{ pings.length }})</h4>
         <button class="close-btn" (click)="showPingHistory = false">✕</button>
       </div>
       <div class="drawer-content">
-        <div class="empty-hint" *ngIf="pings.length === 0">Noch keine Peilsignale von Mister X registriert.</div>
+        <div class="empty-hint" *ngIf="pings.length === 0">Noch keine Pings erfolgt.</div>
         <div class="ping-item" *ngFor="let p of pings; let idx = index" (click)="centerOnLastPing()">
-          <div class="ping-badge-box">
-            <span class="ping-num">#{{ p.pingNumber }}</span>
-          </div>
+          <span class="ping-num">#{{ p.pingNumber }}</span>
           <div class="ping-details">
-            <strong class="ping-time-lbl">Zeitstempel: {{ p.timestamp | date:'HH:mm:ss' }}</strong>
-            <span class="ping-coords-lbl">Koordinaten: {{ p.lat | number:'1.5-5' }}, {{ p.lng | number:'1.5-5' }}</span>
+            <strong>Uhrzeit: {{ p.timestamp | date:'HH:mm:ss' }}</strong>
+            <span>Koordinaten: {{ p.lat | number:'1.4-4' }}, {{ p.lng | number:'1.4-4' }}</span>
           </div>
-          <button class="btn-micro">🎯 Anvisieren</button>
+          <button class="btn-micro">📍 Auf Karte</button>
         </div>
       </div>
     </div>
@@ -526,10 +351,7 @@
     <!-- PLAYER LIST DRAWER -->
     <div class="drawer player-drawer" *ngIf="showPlayerListDrawer">
       <div class="drawer-header">
-        <div class="drawer-header-left">
-          <span class="drawer-icon">👥</span>
-          <h4>EINSATZKRÄFTE & VERDÄCHTIGE ({{ players.length }})</h4>
-        </div>
+        <h4>👥 Spieler & Rollen ({{ players.length }})</h4>
         <button class="close-btn" (click)="showPlayerListDrawer = false">✕</button>
       </div>
       <div class="drawer-content">
@@ -538,8 +360,8 @@
           <div class="p-info">
             <strong>{{ p.name }} {{ p.id === playerId ? '(Du)' : '' }}</strong>
             <span class="p-sub">
-              {{ p.role === 'MISTER_X' ? (myRole === 'MISTER_X' ? 'Mister X (Zielperson)' : 'Mister X (Auf der Flucht)') : 'Scotland Yard Detektiv' }}
-              <span *ngIf="p.isOutOfBounds" class="out-warning"> • Außerhalb der Sperrzone!</span>
+              {{ p.role === 'MISTER_X' ? (myRole === 'MISTER_X' ? 'Mister X' : 'Mister X (Geheim)') : 'Detektiv' }}
+              <span *ngIf="p.isOutOfBounds" class="out-warning"> • Außerhalb der Zone!</span>
             </span>
           </div>
         </div>
@@ -549,35 +371,31 @@
     <!-- GAME OVER / CAUGHT MODAL -->
     <div class="modal-backdrop" *ngIf="gameStatus === 'CAUGHT'">
       <div class="modal-card victory-card">
-        <div class="case-closed-stamp">
-          <span>FALL GELÖST</span>
-        </div>
-
-        <div class="victory-icon">🚨 ⛓️ 🏆</div>
-        <h2>MISTER X WURDE VERHAFTET!</h2>
-        <p class="victory-sub">Erfolgreich gestellt von Detektiv <strong>{{ misterXCaughtBy }}</strong>!</p>
+        <div class="victory-icon">🏆 🚨</div>
+        <h2>MISTER X WURDE GEFANGEN!</h2>
+        <p class="victory-sub">Erfolgreich gestellt von <strong>{{ misterXCaughtBy }}</strong>!</p>
 
         <div class="game-stats-box">
           <div class="stat-col">
             <span class="stat-num">{{ pings.length }}</span>
-            <span class="stat-lbl">Peilsignale</span>
+            <span class="stat-lbl">Pings gesendet</span>
           </div>
           <div class="stat-col">
             <span class="stat-num">{{ players.length }}</span>
-            <span class="stat-lbl">Ermittler</span>
+            <span class="stat-lbl">Spieler</span>
           </div>
           <div class="stat-col">
             <span class="stat-num">{{ settings.radiusMeters }}m</span>
-            <span class="stat-lbl">Sperrzone</span>
+            <span class="stat-lbl">Zone</span>
           </div>
         </div>
 
         <div class="modal-actions" *ngIf="isHost">
           <button class="mx-btn btn-primary" (click)="restartGame()">
-            🔄 Neue Fahndung in der Zentrale starten
+            🔄 Neue Runde in der Lobby starten
           </button>
         </div>
-        <p *ngIf="!isHost" class="wait-host-text">Der Einsatzleiter kann eine neue Runde starten...</p>
+        <p *ngIf="!isHost" class="wait-host-text">Der Host kann eine neue Runde starten...</p>
       </div>
     </div>
 
@@ -586,13 +404,13 @@
   <!-- QR CODE MODAL -->
   <div class="modal-backdrop" *ngIf="showQrModal" (click)="showQrModal = false">
     <div class="modal-card qr-card" (click)="$event.stopPropagation()">
-      <h3>📱 Mit Smartphone scannen</h3>
-      <p>Öffne die Handykamera und scanne diesen Fahndungs-Code, um sofort beizutreten:</p>
+      <h3>📱 Mit Handy scannen</h3>
+      <p>Öffne die Kamera auf dem Smartphone und scanne diesen QR-Code, um der Runde sofort beizutreten:</p>
       <div class="qr-image-wrapper" *ngIf="qrCodeDataUrl">
         <img [src]="qrCodeDataUrl" alt="QR-Code zum Beitreten" />
       </div>
       <div class="qr-code-text">
-        <span>Fahndungs-Code: <strong>{{ roomCode }}</strong></span>
+        <span>Lobby Code: <strong>{{ roomCode }}</strong></span>
       </div>
       <button class="mx-btn btn-secondary" (click)="showQrModal = false">
         Schließen
