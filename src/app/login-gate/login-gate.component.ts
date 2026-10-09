@@ -15,8 +15,8 @@ export class LoginGateComponent implements OnInit, AfterViewInit {
   private googleBtnRef!: ElementRef;
 
   public errorMessage: string | null = null;
-  public testEmail: string = 'severin.puentener@gmail.com';
-  public hasGoogleClientId: boolean = false;
+  public isConfigured: boolean = false;
+  public allowedEmails: string[] = environment.allowedEmails;
 
   constructor(
     public authService: AuthService,
@@ -24,7 +24,7 @@ export class LoginGateComponent implements OnInit, AfterViewInit {
   ) {}
 
   ngOnInit(): void {
-    this.hasGoogleClientId = !environment.googleClientId.startsWith('YOUR_GOOGLE');
+    this.isConfigured = !environment.googleClientId.startsWith('YOUR_GOOGLE');
   }
 
   ngAfterViewInit(): void {
@@ -44,12 +44,14 @@ export class LoginGateComponent implements OnInit, AfterViewInit {
               this.errorMessage = null;
             }
           });
-        }
+        },
+        auto_select: false,
+        cancel_on_tap_outside: true
       });
 
       if (this.googleBtnRef && this.googleBtnRef.nativeElement) {
         google.accounts.id.renderButton(this.googleBtnRef.nativeElement, {
-          theme: 'outline',
+          theme: 'filled_blue',
           size: 'large',
           text: 'signin_with',
           shape: 'rectangular',
@@ -58,17 +60,8 @@ export class LoginGateComponent implements OnInit, AfterViewInit {
         });
       }
     } else {
-      // Retry in 500ms if script is still loading
-      setTimeout(() => this.initGoogleSignIn(), 500);
-    }
-  }
-
-  public onDevLoginSubmit(e: Event): void {
-    e.preventDefault();
-    this.errorMessage = null;
-    const res = this.authService.devLogin(this.testEmail);
-    if (!res.success) {
-      this.errorMessage = res.error || 'Login fehlgeschlagen.';
+      // Retry in 300ms if Google script is still loading
+      setTimeout(() => this.initGoogleSignIn(), 300);
     }
   }
 }

@@ -3,42 +3,32 @@
     <div class="badge-lock">🔒</div>
     <h2>Geschützter Bereich</h2>
     <p class="subtitle">
-      Diese Website ist privat. Bitte mit dem autorisierten Google-Konto von Severin anmelden.
+      Diese Website ist privat. Bitte melde dich mit deinem offiziellen <strong>Google-Konto</strong> (E-Mail & Passwort) an.
     </p>
 
-    <!-- Error message banner -->
+    <!-- Fehlermeldung bei fremden Google-Konten -->
     <div class="error-banner" *ngIf="errorMessage">
-      <span class="error-icon">⚠️</span>
+      <span class="error-icon">🚫</span>
       <span>{{ errorMessage }}</span>
     </div>
 
-    <!-- Official Google Identity Button container -->
-    <div class="google-button-wrapper" [class.hidden-btn]="!hasGoogleClientId">
+    <!-- Offizieller Google Identity Services Login-Button -->
+    <div class="google-button-container">
       <div #googleBtn id="google-btn"></div>
     </div>
 
-    <!-- Fallback / Schnell-Test Button für Entwickler -->
-    <div class="dev-login-section">
-      <div class="divider">
-        <span>Google-Konto Schnell-Login</span>
-      </div>
+    <!-- Hinweis, falls Client ID noch eingerichtet werden muss -->
+    <div *ngIf="!isConfigured" class="setup-hint">
+      <p class="setup-title">⚙️ Google Client-ID noch eintragen:</p>
+      <p class="setup-text">
+        Um den echten Google-Login mit Passwort zu aktivieren, trage deine Google Cloud Client-ID in
+        <code>src/environments/environment.prod.ts</code> ein.
+      </p>
+    </div>
 
-      <form (submit)="onDevLoginSubmit($event)" class="dev-form">
-        <input
-          type="email"
-          [(ngModel)]="testEmail"
-          name="testEmail"
-          placeholder="deine-gmail-adresse@gmail.com"
-          class="email-input"
-          required
-        />
-        <button type="submit" class="submit-btn">
-          Als Severin einloggen
-        </button>
-      </form>
-
-      <p class="hint">
-        Prüft gegen die autorisierte E-Mail-Whitelist in der Konfiguration.
+    <div class="security-note">
+      <p>
+        🛡️ Es ist ein Passwort-Login über Google erforderlich. Nur autorisierte Google-Konten (Severin) erhalten Zugriff.
       </p>
     </div>
   </div>

@@ -54,7 +54,8 @@ export class AuthService {
   }
 
   /**
-   * Decodes Google ID Token (JWT) and validates the user email
+   * Decodes Google ID Token (JWT) from Google Identity Services and validates
+   * that the user successfully authenticated with Google and matches Severin's account.
    */
   public handleGoogleCredential(credential: string): { success: boolean; error?: string } {
     try {
@@ -87,30 +88,6 @@ export class AuthService {
       console.error('Failed to parse Google credential', err);
       return { success: false, error: 'Ungültiges Google-Anmeldetoken.' };
     }
-  }
-
-  /**
-   * Developer login for testing without needing Google Cloud OAuth configured
-   */
-  public devLogin(email: string): { success: boolean; error?: string } {
-    const cleanEmail = email.trim().toLowerCase();
-    if (!this.isEmailAllowed(cleanEmail)) {
-      return {
-        success: false,
-        error: `Zugriff verweigert: "${email}" ist nicht in der Liste der erlaubten E-Mails.`
-      };
-    }
-
-    const user: AuthUser = {
-      email: cleanEmail,
-      name: 'Severin Püntener',
-      picture: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-      given_name: 'Severin'
-    };
-
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(user));
-    this.currentUserSubject.next(user);
-    return { success: true };
   }
 
   public logout(): void {
