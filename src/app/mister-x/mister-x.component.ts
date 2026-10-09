@@ -712,6 +712,9 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private applyNewPing(record: PingRecord, nextTimestamp: number) {
+    if (this.pings.some(p => p.pingNumber === record.pingNumber || Math.abs(p.timestamp - record.timestamp) < 2000)) {
+      return;
+    }
     this.pings.push(record);
     this.lastPing = record;
     this.nextPingTimestamp = nextTimestamp;
@@ -933,7 +936,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       }
 
       case 'PING': {
-        if (msg.payload.record) {
+        if (msg.payload.record && msg.senderId !== this.playerId) {
           this.applyNewPing(msg.payload.record, msg.payload.nextPingTimestamp);
         }
         break;
@@ -1180,5 +1183,24 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   public toggleMute() {
     this.soundMuted = !this.soundMuted;
     this.audio.setSoundEnabled(!this.soundMuted);
+  }
+
+  public togglePingHistory() {
+    this.showPingHistory = !this.showPingHistory;
+    if (this.showPingHistory) {
+      this.showPlayerListDrawer = false;
+    }
+  }
+
+  public togglePlayerListDrawer() {
+    this.showPlayerListDrawer = !this.showPlayerListDrawer;
+    if (this.showPlayerListDrawer) {
+      this.showPingHistory = false;
+    }
+  }
+
+  public closeAllDrawers() {
+    this.showPingHistory = false;
+    this.showPlayerListDrawer = false;
   }
 }

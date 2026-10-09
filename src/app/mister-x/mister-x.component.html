@@ -239,10 +239,10 @@
         <button class="hud-btn" (click)="toggleMute()" title="Ton an/aus">
           <span>{{ soundMuted ? '🔇' : '🔊' }}</span>
         </button>
-        <button class="hud-btn" [class.active]="showPingHistory" (click)="showPingHistory = !showPingHistory" title="Pings">
+        <button class="hud-btn" [class.active]="showPingHistory" (click)="togglePingHistory()" title="Pings">
           <span>📜</span>
         </button>
-        <button class="hud-btn" [class.active]="showPlayerListDrawer" (click)="showPlayerListDrawer = !showPlayerListDrawer" title="Spieler">
+        <button class="hud-btn" [class.active]="showPlayerListDrawer" (click)="togglePlayerListDrawer()" title="Spieler">
           <span>👥</span>
         </button>
       </div>
@@ -329,11 +329,14 @@
       </div>
     </footer>
 
+    <!-- BACKDROP FOR DRAWERS / OVERLAYS -->
+    <div class="drawer-backdrop" *ngIf="showPingHistory || showPlayerListDrawer" (click)="closeAllDrawers()"></div>
+
     <!-- PING HISTORY DRAWER -->
     <div class="drawer ping-drawer" *ngIf="showPingHistory">
       <div class="drawer-header">
         <h4>📜 Ping-Historie ({{ pings.length }})</h4>
-        <button class="close-btn" (click)="showPingHistory = false">✕</button>
+        <button class="close-btn" (click)="closeAllDrawers()">✕</button>
       </div>
       <div class="drawer-content">
         <div class="empty-hint" *ngIf="pings.length === 0">Noch keine Pings erfolgt.</div>
@@ -352,7 +355,7 @@
     <div class="drawer player-drawer" *ngIf="showPlayerListDrawer">
       <div class="drawer-header">
         <h4>👥 Spieler & Rollen ({{ players.length }})</h4>
-        <button class="close-btn" (click)="showPlayerListDrawer = false">✕</button>
+        <button class="close-btn" (click)="closeAllDrawers()">✕</button>
       </div>
       <div class="drawer-content">
         <div class="player-drawer-item" *ngFor="let p of players">
