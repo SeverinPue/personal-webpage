@@ -136,6 +136,12 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.subs.push(
       this.route.queryParams.subscribe(params => {
         const urlRoom = params['room'] ? params['room'].toUpperCase().trim() : '';
+
+        // If we are currently connecting or already in LOBBY/GAME for this room, do NOT re-run!
+        if (this.connecting || ((this.viewState === 'LOBBY' || this.viewState === 'GAME') && this.roomCode === urlRoom)) {
+          return;
+        }
+
         const savedSession = localStorage.getItem('mx_active_session');
         let sessionObj: any = null;
         if (savedSession) {
@@ -144,14 +150,16 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
 
         if (urlRoom) {
           // If entering via link or QR code with a room parameter:
-          // Immediately purge old session if it belongs to a different room!
           if (sessionObj && sessionObj.roomCode !== urlRoom) {
             localStorage.removeItem('mx_active_session');
             sessionObj = null;
           }
 
+          // If the player was host in the saved session for this room, preserve host!
+          const wasHost = (sessionObj && sessionObj.roomCode === urlRoom) ? !!sessionObj.isHost : false;
+
           this.roomCode = urlRoom;
-          this.isHost = false;
+          this.isHost = wasHost;
 
           // Ensure player has a name (fallback to generated agent name if empty)
           if (!this.playerName.trim()) {
@@ -159,19 +167,24 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
             localStorage.setItem('mx_player_name', this.playerName);
           }
 
-          // Directly join room into the lobby!
-          this.joinRoomInternal().then(() => {
-            this.showToast(`Lobby ${this.roomCode} beigetreten!`);
-            this.network.publishEvent({
-              type: 'REQUEST_SYNC',
-              senderId: this.playerId,
-              senderName: this.playerName,
-              timestamp: Date.now(),
-              payload: {}
+          // Directly join room into the lobby ONLY if on JOIN_SCREEN
+          if (this.viewState === 'JOIN_SCREEN') {
+            this.joinRoomInternal().then(() => {
+              this.showToast(`Lobby ${this.roomCode} beigetreten!`);
+              if (!this.isHost) {
+                this.network.publishEvent({
+                  type: 'REQUEST_SYNC',
+                  senderId: this.playerId,
+                  senderName: this.playerName,
+                  timestamp: Date.now(),
+                  payload: {}
+                });
+              }
+            }).catch(err => {
+              this.connecting = false;
+              console.warn('Auto-join failed:', err);
             });
-          }).catch(err => {
-            console.warn('Auto-join failed:', err);
-          });
+          }
 
         } else if (sessionObj && sessionObj.roomCode && sessionObj.playerName) {
           // No room in URL: restore session after lock screen or refresh
@@ -179,18 +192,23 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
           this.playerName = sessionObj.playerName;
           this.playerId = sessionObj.playerId || this.playerId;
           this.isHost = !!sessionObj.isHost;
-          this.joinRoomInternal().then(() => {
-            this.showToast(`Sitzung für Raum ${this.roomCode} wiederhergestellt!`);
-            if (!this.isHost) {
-              this.network.publishEvent({
-                type: 'REQUEST_SYNC',
-                senderId: this.playerId,
-                senderName: this.playerName,
-                timestamp: Date.now(),
-                payload: {}
-              });
-            }
-          }).catch(() => {});
+
+          if (this.viewState === 'JOIN_SCREEN') {
+            this.joinRoomInternal().then(() => {
+              this.showToast(`Sitzung für Raum ${this.roomCode} wiederhergestellt!`);
+              if (!this.isHost) {
+                this.network.publishEvent({
+                  type: 'REQUEST_SYNC',
+                  senderId: this.playerId,
+                  senderName: this.playerName,
+                  timestamp: Date.now(),
+                  payload: {}
+                });
+              }
+            }).catch(() => {
+              this.connecting = false;
+            });
+          }
         }
       })
     );
@@ -246,7 +264,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   // --- LOBBY CREATION & JOINING ---
 
   public createLobby() {
-    if (!this.playerName.trim()) return;
+    if (!this.playerName.trim() || this.connecting) return;
     localStorage.setItem('mx_player_name', this.playerName.trim());
 
     // Generate clean 5-digit room code
@@ -261,7 +279,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   public joinLobby() {
-    if (!this.playerName.trim() || !this.roomCode.trim()) return;
+    if (!this.playerName.trim() || !this.roomCode.trim() || this.connecting) return;
     localStorage.setItem('mx_player_name', this.playerName.trim());
     this.roomCode = this.roomCode.toUpperCase().trim();
     this.isHost = false;
@@ -269,13 +287,16 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private async joinRoomInternal() {
+    if (this.connecting) return;
     this.connecting = true;
     this.connectionError = '';
+
+    const isHostForThisRoom = this.isHost;
 
     this.myPlayer = {
       id: this.playerId,
       name: this.playerName.trim(),
-      isHost: this.isHost,
+      isHost: isHostForThisRoom,
       role: 'UNASSIGNED',
       lat: this.currentLat || this.settings.centerLat,
       lng: this.currentLng || this.settings.centerLng
@@ -288,10 +309,20 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       queryParamsHandling: 'merge'
     });
 
+    const timeoutTimer = setTimeout(() => {
+      if (this.connecting) {
+        this.connecting = false;
+        this.connectionError = 'Verbindung hat zu lange gedauert. Bitte erneut versuchen.';
+      }
+    }, 8000);
+
     try {
       await this.network.connect(this.roomCode, this.myPlayer);
+      clearTimeout(timeoutTimer);
       this.connecting = false;
       this.viewState = 'LOBBY';
+      this.isHost = isHostForThisRoom;
+      this.myPlayer.isHost = isHostForThisRoom;
       this.players = [this.myPlayer];
       this.startGpsTracking();
       this.generateQrCode();
@@ -319,12 +350,15 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       // Initialize lobby preview map on next tick
       setTimeout(() => this.initLobbyMap(), 100);
     } catch (err: any) {
+      clearTimeout(timeoutTimer);
       this.connecting = false;
       this.connectionError = 'Verbindung fehlgeschlagen: ' + (err.message || 'Server nicht erreichbar');
     }
   }
 
   public leaveLobby() {
+    this.connecting = false;
+    this.connectionError = '';
     localStorage.removeItem('mx_active_session');
     this.releaseWakeLock();
     this.stopGpsTracking();
@@ -338,6 +372,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.pings = [];
     this.lastPing = null;
     this.roomCode = '';
+    this.isHost = false;
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { room: null },
@@ -1101,6 +1136,12 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
         if (!this.isHost && msg.payload.settings) {
           this.settings = msg.payload.settings;
           this.players = msg.payload.players || this.players;
+
+          // If current player is marked as host in the received player list, update isHost
+          const meInList = this.players.find(p => p.id === this.playerId);
+          if (meInList && meInList.isHost) {
+            this.isHost = true;
+          }
 
           // If game is in progress
           if (msg.payload.gameStatus === 'PLAYING') {
