@@ -230,6 +230,9 @@
 
       <!-- Quick Action Buttons -->
       <div class="hud-tools">
+        <button class="hud-btn compass-btn" [class.rotated]="mapBearing !== 0" (click)="resetNorth()" title="Nach Norden ausrichten (0°)">
+          <span class="compass-needle" [style.transform]="'rotate(' + (-mapBearing) + 'deg)'">🧭</span>
+        </button>
         <button class="hud-btn" (click)="centerOnMe()" title="Zentrieren">
           <span>🎯</span>
         </button>
@@ -246,12 +249,12 @@
           <span>👥</span>
         </button>
       </div>
-    </header>
 
-    <!-- OUT OF BOUNDS WARNING BANNER -->
-    <div class="zone-alert-banner" *ngIf="isOutOfBounds">
-      ⚠️ ACHTUNG: Du bist außerhalb der Spielzone! Kehre zurück!
-    </div>
+      <!-- OUT OF BOUNDS WARNING BANNER (Inside HUD flow so it NEVER overlaps with ping countdown!) -->
+      <div class="zone-alert-banner" *ngIf="isOutOfBounds">
+        ⚠️ ACHTUNG: Du bist außerhalb der Spielzone! Kehre zurück!
+      </div>
+    </header>
 
     <!-- MAIN LEAFLET MAP -->
     <div class="game-map-container">

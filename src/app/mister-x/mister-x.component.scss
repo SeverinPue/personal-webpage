@@ -779,24 +779,36 @@
       background: #0284c7;
       border-color: #38bdf8;
     }
+
+    &.compass-btn {
+      &.rotated {
+        border-color: #f59e0b;
+        background: rgba(245, 158, 11, 0.25);
+        box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+      }
+      .compass-needle {
+        display: inline-block;
+        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        transform-origin: center center;
+      }
+    }
   }
 }
 
 .zone-alert-banner {
-  position: absolute;
-  top: 70px;
-  left: 10px;
-  right: 10px;
+  order: 10;
+  width: 100%;
+  margin-top: 6px;
   background: rgba(239, 68, 68, 0.95);
   color: white;
   text-align: center;
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 8px 14px;
+  border-radius: 10px;
   font-weight: 700;
   font-size: 0.85rem;
-  z-index: 1000;
   box-shadow: 0 4px 15px rgba(239, 68, 68, 0.5);
   animation: bounce 1s infinite;
+  pointer-events: auto;
 }
 
 @keyframes bounce {

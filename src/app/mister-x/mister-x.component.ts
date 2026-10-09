@@ -56,6 +56,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   public showCatchModal = false;
   public catchModalDismissed = false;
   public showRoleRevealModal = false;
+  public mapBearing = 0;
   private wakeLockSentinel: any = null;
 
   // Real-life GPS
@@ -532,17 +533,30 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     const center: L.LatLngTuple = [this.settings.centerLat, this.settings.centerLng];
-    this.gameMap = L.map(this.mapContainer.nativeElement, {
+    const map = (L as any).map(this.mapContainer.nativeElement, {
       center: center,
       zoom: 15,
-      zoomControl: false // Custom controls in UI
+      zoomControl: false,
+      rotate: true,
+      bearing: 0,
+      touchRotate: true,
+      rotateControl: false
+    }) as L.Map;
+    this.gameMap = map;
+
+    this.mapBearing = 0;
+
+    map.on('rotate' as any, () => {
+      this.ngZone.run(() => {
+        this.mapBearing = Math.round((map as any).getBearing() || 0);
+      });
     });
 
     // Dark/tactical styled tiles or standard OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap'
-    }).addTo(this.gameMap);
+    }).addTo(map);
 
     // Boundary zone circle
     this.boundaryCircle = L.circle(center, {
@@ -552,7 +566,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       fillOpacity: 0.1,
       weight: 3,
       dashArray: '8, 8'
-    }).addTo(this.gameMap);
+    }).addTo(map);
 
     // Breadcrumb trail polyline for Mister X's past pings
     this.pingTrailPolyline = L.polyline([], {
@@ -560,7 +574,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       weight: 3,
       opacity: 0.7,
       dashArray: '4, 8'
-    }).addTo(this.gameMap);
+    }).addTo(map);
 
     // Clean up stale markers and render all current player markers immediately
     this.playerMarkers.forEach(m => m.remove());
@@ -1340,6 +1354,15 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
 
   public closeRoleRevealModal() {
     this.showRoleRevealModal = false;
+  }
+
+  public resetNorth() {
+    if (!this.gameMap) return;
+    if (typeof (this.gameMap as any).setBearing === 'function') {
+      (this.gameMap as any).setBearing(0);
+    }
+    this.mapBearing = 0;
+    this.showToast('🧭 Karte nach Norden ausgerichtet');
   }
 
   private async requestWakeLock() {
