@@ -1,6 +1,7 @@
 /* You can add global styles to this file, and also import other style files */
 
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
+@import 'leaflet/dist/leaflet.css';
 
 $color-foreground: #31636b;
 $color-background: #becdcf;
@@ -79,4 +80,8 @@ footer {
       color: #bd4913d1;
     }
   }
+}
+
+body:has(app-mister-x) footer {
+  display: none !important;
 }

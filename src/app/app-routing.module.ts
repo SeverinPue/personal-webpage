@@ -3,10 +3,12 @@ import { RouterModule, Routes } from '@angular/router';
 import { StartseiteComponent } from './startseite/startseite.component';
 import { UeberMichComponent } from './ueber-mich/ueber-mich.component';
 import { ErrorPageComponent } from './error-page/error-page.component';
+import { MisterXComponent } from './mister-x/mister-x.component';
 
 const routes: Routes = [
   { path: '', component: StartseiteComponent },
   { path: 'ueber-mich', component: UeberMichComponent },
+  { path: 'misterx', component: MisterXComponent },
   { path: 'zweiteSeite', redirectTo: 'ueber-mich', pathMatch: 'full' },
   { path: '**', component: ErrorPageComponent },
 ];

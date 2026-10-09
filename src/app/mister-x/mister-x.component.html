@@ -1,0 +1,421 @@
+<div class="misterx-root" [class.theme-misterx]="myRole === 'MISTER_X'" [class.theme-detective]="myRole === 'DETECTIVE'">
+
+  <!-- TOAST NOTIFICATION -->
+  <div class="mx-toast" *ngIf="notificationText">
+    <span>{{ notificationText }}</span>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 1. JOIN / START SCREEN                    -->
+  <!-- ========================================== -->
+  <div class="screen join-screen" *ngIf="viewState === 'JOIN_SCREEN'">
+    <div class="join-card">
+      <div class="logo-badge">
+        <span class="logo-icon">🕵️‍♂️ ⚡ 🎩</span>
+      </div>
+      <h1 class="game-title">MISTER X</h1>
+      <p class="game-subtitle">Reallife GPS Jagd im echten Leben</p>
+
+      <div class="form-group">
+        <label for="pName">Dein Spielername</label>
+        <input
+          id="pName"
+          type="text"
+          class="mx-input"
+          placeholder="z.B. James, Sherlock, Mia..."
+          [(ngModel)]="playerName"
+          maxlength="20"
+        />
+      </div>
+
+      <!-- Action buttons -->
+      <div class="action-grid">
+        <button class="mx-btn btn-primary" (click)="createLobby()" [disabled]="!playerName.trim() || connecting">
+          <span>👑 Neue Lobby erstellen</span>
+        </button>
+
+        <div class="join-divider">
+          <span>ODER EINER LOBBY BEITRETEN</span>
+        </div>
+
+        <div class="join-box">
+          <input
+            type="text"
+            class="mx-input code-input"
+            placeholder="5-stelliger Code (z.B. X7K9P)"
+            [(ngModel)]="roomCode"
+            maxlength="6"
+          />
+          <button class="mx-btn btn-secondary" (click)="joinLobby()" [disabled]="!playerName.trim() || !roomCode.trim() || connecting">
+            <span>🚀 Beitreten</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="error-msg" *ngIf="connectionError">
+        ⚠️ {{ connectionError }}
+      </div>
+
+      <div class="game-how-to">
+        <h4>📖 So funktioniert's:</h4>
+        <ul>
+          <li><strong>Echtes GPS:</strong> Ihr bewegt euch draußen zu Fuß in der Stadt/Nachbarschaft.</li>
+          <li><strong>Der Umkreis:</strong> Der Owner bestimmt den Spielbereich auf der Karte.</li>
+          <li><strong>Alle 3 Minuten:</strong> Mister X sendet einen automatischen GPS-Ping für alle Detektive!</li>
+          <li><strong>Das Ziel:</strong> Die Detektive müssen Mister X aufspüren und auf unter 30 Meter fangen!</li>
+        </ul>
+      </div>
+
+      <div class="back-link">
+        <a routerLink="/">← Zurück zur Startseite</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 2. LOBBY WAITING SCREEN                   -->
+  <!-- ========================================== -->
+  <div class="screen lobby-screen" *ngIf="viewState === 'LOBBY'">
+    <header class="lobby-header">
+      <div class="room-code-tag">
+        <span class="code-label">LOBBY CODE:</span>
+        <strong class="code-value">{{ roomCode }}</strong>
+      </div>
+      <div class="header-actions">
+        <button class="mini-btn" (click)="shareInvite()" title="Einladen">
+          <span>📤 Teilen</span>
+        </button>
+        <button class="mini-btn" (click)="copyShareLink()" title="Link kopieren">
+          <span>📋 {{ copySuccess ? 'Kopiert!' : 'Link' }}</span>
+        </button>
+        <button class="mini-btn" (click)="showQrModal = true" title="QR-Code">
+          <span>📱 QR-Code</span>
+        </button>
+        <button class="mini-btn btn-danger" (click)="leaveLobby()" title="Verlassen">
+          <span>Verlassen</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="lobby-content">
+      <!-- Left Column: Map & Range Settings (Host) -->
+      <div class="lobby-settings-panel">
+        <div class="panel-section">
+          <h3>📍 Spielbereich & Umkreis (Range)</h3>
+          <p class="hint-text">
+            {{ isHost ? 'Klicke auf die Karte oder ziehe den Pin, um das Zentrum festzulegen.' : 'Der Host definiert den Spielbereich.' }}
+          </p>
+
+          <!-- Interactive preview map -->
+          <div class="lobby-map-wrapper">
+            <div #lobbyMapContainer class="leaflet-lobby-map"></div>
+          </div>
+
+          <div class="center-gps-row" *ngIf="isHost">
+            <button class="mx-btn btn-small" (click)="setCenterToMyGps()">
+              📍 Mein aktueller Standort als Zentrum
+            </button>
+          </div>
+
+          <!-- Radius Selector -->
+          <div class="setting-item" *ngIf="isHost">
+            <div class="setting-label-row">
+              <span>Umkreis-Radius:</span>
+              <strong>{{ settings.radiusMeters >= 1000 ? (settings.radiusMeters / 1000) + ' km' : settings.radiusMeters + ' m' }}</strong>
+            </div>
+            <div class="preset-buttons">
+              <button [class.active]="settings.radiusMeters === 300" (click)="updateRadius(300)">300m</button>
+              <button [class.active]="settings.radiusMeters === 500" (click)="updateRadius(500)">500m</button>
+              <button [class.active]="settings.radiusMeters === 800" (click)="updateRadius(800)">800m</button>
+              <button [class.active]="settings.radiusMeters === 1200" (click)="updateRadius(1200)">1.2km</button>
+              <button [class.active]="settings.radiusMeters === 2000" (click)="updateRadius(2000)">2km</button>
+              <button [class.active]="settings.radiusMeters === 3000" (click)="updateRadius(3000)">3km</button>
+            </div>
+          </div>
+
+          <!-- Ping Interval Selector -->
+          <div class="setting-item" *ngIf="isHost">
+            <div class="setting-label-row">
+              <span>Mister X Ping-Intervall:</span>
+              <strong>{{ settings.pingIntervalSeconds / 60 }} Minuten</strong>
+            </div>
+            <div class="preset-buttons">
+              <button [class.active]="settings.pingIntervalSeconds === 60" (click)="updatePingInterval(60)">1 Min</button>
+              <button [class.active]="settings.pingIntervalSeconds === 120" (click)="updatePingInterval(120)">2 Min</button>
+              <button [class.active]="settings.pingIntervalSeconds === 180" (click)="updatePingInterval(180)">3 Min (Standard)</button>
+              <button [class.active]="settings.pingIntervalSeconds === 300" (click)="updatePingInterval(300)">5 Min</button>
+            </div>
+          </div>
+
+          <!-- Mister X Assignment -->
+          <div class="setting-item" *ngIf="isHost">
+            <div class="setting-label-row">
+              <span>Mister X Rolle:</span>
+              <strong>{{ settings.misterXPlayerId ? 'Ausgewählt' : 'Zufällig auslosen' }}</strong>
+            </div>
+            <select class="mx-select" [(ngModel)]="settings.misterXPlayerId" (change)="broadcastSettings()">
+              <option value="">🎲 Zufälliger Spieler beim Start</option>
+              <option *ngFor="let p of players" [value]="p.id">🎩 {{ p.name }} {{ p.id === playerId ? '(Du)' : '' }}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Player list & Start -->
+      <div class="lobby-players-panel">
+        <div class="panel-section">
+          <div class="players-header">
+            <h3>👥 Spieler in der Lobby ({{ players.length }})</h3>
+            <span class="live-dot">LIVE</span>
+          </div>
+
+          <div class="player-list">
+            <div class="player-card" *ngFor="let p of players" [class.is-self]="p.id === playerId">
+              <div class="player-avatar">
+                {{ p.id === settings.misterXPlayerId ? '🎩' : '🕵️' }}
+              </div>
+              <div class="player-info">
+                <span class="player-name">{{ p.name }} {{ p.id === playerId ? '(Du)' : '' }}</span>
+                <span class="player-status">
+                  <span *ngIf="p.isHost" class="host-pill">👑 Host / Owner</span>
+                  <span class="gps-pill" [class.active]="p.lat">📍 GPS Bereit</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Host Start Button -->
+          <div class="start-game-box" *ngIf="isHost">
+            <button class="mx-btn btn-success btn-large" (click)="startGame()">
+              <span>🎮 SPIEL JETZT STARTEN</span>
+            </button>
+            <p class="start-hint">Rollen werden verteilt & das Spiel beginnt sofort!</p>
+          </div>
+
+          <div class="waiting-box" *ngIf="!isHost">
+            <div class="spinner"></div>
+            <p>Warte darauf, dass der Host das Spiel startet...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 3. ACTIVE GAME SCREEN (FULLSCREEN HUD)     -->
+  <!-- ========================================== -->
+  <div class="screen game-screen" *ngIf="viewState === 'GAME'">
+
+    <!-- TOP TACTICAL HUD -->
+    <header class="game-hud-top">
+      <div class="hud-role-pill" [class.is-misterx]="myRole === 'MISTER_X'">
+        <span class="role-icon">{{ myRole === 'MISTER_X' ? '🎩' : '🕵️' }}</span>
+        <div class="role-texts">
+          <strong class="role-title">{{ myRole === 'MISTER_X' ? 'MISTER X' : 'DETEKTIV' }}</strong>
+          <span class="role-sub">{{ myRole === 'MISTER_X' ? 'Entkomme!' : 'Jage Mister X!' }}</span>
+        </div>
+      </div>
+
+      <!-- Ping Countdown Widget -->
+      <div class="hud-ping-widget" [class.urgent]="nextPingInSeconds <= 15">
+        <div class="ping-sonar-icon">
+          <div class="sonar-wave"></div>
+          📡
+        </div>
+        <div class="ping-countdown-block">
+          <span class="ping-label">{{ myRole === 'MISTER_X' ? 'Aufdeckung in' : 'Nächster Ping in' }}</span>
+          <strong class="ping-timer">{{ formatSeconds(nextPingInSeconds) }}</strong>
+        </div>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="hud-tools">
+        <button class="hud-btn" (click)="centerOnMe()" title="Zentrieren">
+          <span>🎯</span>
+        </button>
+        <button class="hud-btn" (click)="fitGameZone()" title="Ganzes Gebiet">
+          <span>🗺️</span>
+        </button>
+        <button class="hud-btn" (click)="toggleMute()" title="Ton an/aus">
+          <span>{{ soundMuted ? '🔇' : '🔊' }}</span>
+        </button>
+        <button class="hud-btn" [class.active]="showPingHistory" (click)="showPingHistory = !showPingHistory" title="Pings">
+          <span>📜</span>
+        </button>
+        <button class="hud-btn" [class.active]="showPlayerListDrawer" (click)="showPlayerListDrawer = !showPlayerListDrawer" title="Spieler">
+          <span>👥</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- OUT OF BOUNDS WARNING BANNER -->
+    <div class="zone-alert-banner" *ngIf="isOutOfBounds">
+      ⚠️ ACHTUNG: Du bist außerhalb der Spielzone! Kehre zurück!
+    </div>
+
+    <!-- MAIN LEAFLET MAP -->
+    <div class="game-map-container">
+      <div #mapContainer class="leaflet-game-map"></div>
+    </div>
+
+    <!-- BOTTOM TACTICAL STATUS BAR -->
+    <footer class="game-hud-bottom">
+      <div class="bottom-status-card">
+        <!-- Detective View -->
+        <ng-container *ngIf="myRole === 'DETECTIVE'">
+          <div class="ping-info-row" *ngIf="lastPing">
+            <span class="ping-badge">Ping #{{ lastPing.pingNumber }}</span>
+            <span class="ping-time">{{ pings.length }} Pings bisher</span>
+            <span class="ping-dist" *ngIf="distanceToMisterX !== null">
+              📏 Distanz: <strong>{{ distanceToMisterX }}m</strong>
+              <span *ngIf="getDirectionToMisterX()"> (Richtung {{ getDirectionToMisterX() }})</span>
+            </span>
+          </div>
+          <div class="ping-info-row empty" *ngIf="!lastPing">
+            <span>📡 Warten auf den ersten Ping von Mister X...</span>
+          </div>
+        </ng-container>
+
+        <!-- Mister X View -->
+        <ng-container *ngIf="myRole === 'MISTER_X'">
+          <div class="misterx-status-row">
+            <span class="stealth-badge">🕵️‍♂️ TARNUNG AKTIV</span>
+            <span class="misterx-hint">
+              {{ nextPingInSeconds <= 15 ? '⚠️ Dein Standort wird gleich aufgedeckt!' : 'Bewege dich unauffällig durch die Zone.' }}
+            </span>
+          </div>
+        </ng-container>
+
+        <!-- CATCH BUTTON -->
+        <div class="catch-action-box" *ngIf="myRole === 'DETECTIVE'">
+          <button
+            class="catch-btn"
+            [class.can-catch]="canCatchMisterX"
+            (click)="catchMisterX()"
+            [disabled]="!canCatchMisterX && (distanceToMisterX === null || distanceToMisterX > settings.catchRadiusMeters)"
+          >
+            <span class="catch-icon">🚨</span>
+            <span class="catch-text">
+              {{ canCatchMisterX ? 'MISTER X FANGEN! (In Reichweite!)' : 'FANGEN (' + (distanceToMisterX ? distanceToMisterX + 'm entfernt, nötig: ≤' + settings.catchRadiusMeters + 'm' : 'Suchmodus') + ')' }}
+            </span>
+          </button>
+        </div>
+
+        <!-- Simulator / Testmode Toggle -->
+        <div class="sim-toggle-row">
+          <button class="sim-btn" [class.active]="simulationMode" (click)="toggleSimulationMode()">
+            🕹️ Test-Modus (Klick/Tastatur)
+          </button>
+          <button class="sim-btn" *ngIf="isHost" (click)="triggerMisterXPing()">
+            ⚡ Sofort-Ping auslösen
+          </button>
+          <button class="sim-btn btn-danger-text" *ngIf="isHost" (click)="restartGame()">
+            🛑 Spiel beenden
+          </button>
+        </div>
+
+        <!-- Virtual Joystick for Test Mode -->
+        <div class="sim-controls" *ngIf="simulationMode">
+          <div class="sim-pad">
+            <button (click)="simulateStep('N')">⬆️ N</button>
+            <div class="sim-row">
+              <button (click)="simulateStep('W')">⬅️ W</button>
+              <span>Walk</span>
+              <button (click)="simulateStep('E')">➡️ O</button>
+            </div>
+            <button (click)="simulateStep('S')">⬇️ S</button>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <!-- PING HISTORY DRAWER -->
+    <div class="drawer ping-drawer" *ngIf="showPingHistory">
+      <div class="drawer-header">
+        <h4>📜 Ping-Historie ({{ pings.length }})</h4>
+        <button class="close-btn" (click)="showPingHistory = false">✕</button>
+      </div>
+      <div class="drawer-content">
+        <div class="empty-hint" *ngIf="pings.length === 0">Noch keine Pings erfolgt.</div>
+        <div class="ping-item" *ngFor="let p of pings; let idx = index" (click)="centerOnLastPing()">
+          <span class="ping-num">#{{ p.pingNumber }}</span>
+          <div class="ping-details">
+            <strong>Uhrzeit: {{ p.timestamp | date:'HH:mm:ss' }}</strong>
+            <span>Koordinaten: {{ p.lat | number:'1.4-4' }}, {{ p.lng | number:'1.4-4' }}</span>
+          </div>
+          <button class="btn-micro">📍 Auf Karte</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PLAYER LIST DRAWER -->
+    <div class="drawer player-drawer" *ngIf="showPlayerListDrawer">
+      <div class="drawer-header">
+        <h4>👥 Spieler & Rollen ({{ players.length }})</h4>
+        <button class="close-btn" (click)="showPlayerListDrawer = false">✕</button>
+      </div>
+      <div class="drawer-content">
+        <div class="player-drawer-item" *ngFor="let p of players">
+          <span class="p-icon">{{ p.role === 'MISTER_X' ? '🎩' : '🕵️' }}</span>
+          <div class="p-info">
+            <strong>{{ p.name }} {{ p.id === playerId ? '(Du)' : '' }}</strong>
+            <span class="p-sub">
+              {{ p.role === 'MISTER_X' ? (myRole === 'MISTER_X' ? 'Mister X' : 'Mister X (Geheim)') : 'Detektiv' }}
+              <span *ngIf="p.isOutOfBounds" class="out-warning"> • Außerhalb der Zone!</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GAME OVER / CAUGHT MODAL -->
+    <div class="modal-backdrop" *ngIf="gameStatus === 'CAUGHT'">
+      <div class="modal-card victory-card">
+        <div class="victory-icon">🏆 🚨</div>
+        <h2>MISTER X WURDE GEFANGEN!</h2>
+        <p class="victory-sub">Erfolgreich gestellt von <strong>{{ misterXCaughtBy }}</strong>!</p>
+
+        <div class="game-stats-box">
+          <div class="stat-col">
+            <span class="stat-num">{{ pings.length }}</span>
+            <span class="stat-lbl">Pings gesendet</span>
+          </div>
+          <div class="stat-col">
+            <span class="stat-num">{{ players.length }}</span>
+            <span class="stat-lbl">Spieler</span>
+          </div>
+          <div class="stat-col">
+            <span class="stat-num">{{ settings.radiusMeters }}m</span>
+            <span class="stat-lbl">Zone</span>
+          </div>
+        </div>
+
+        <div class="modal-actions" *ngIf="isHost">
+          <button class="mx-btn btn-primary" (click)="restartGame()">
+            🔄 Neue Runde in der Lobby starten
+          </button>
+        </div>
+        <p *ngIf="!isHost" class="wait-host-text">Der Host kann eine neue Runde starten...</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- QR CODE MODAL -->
+  <div class="modal-backdrop" *ngIf="showQrModal" (click)="showQrModal = false">
+    <div class="modal-card qr-card" (click)="$event.stopPropagation()">
+      <h3>📱 Mit Handy scannen</h3>
+      <p>Öffne die Kamera auf dem Smartphone und scanne diesen QR-Code, um der Runde sofort beizutreten:</p>
+      <div class="qr-image-wrapper" *ngIf="qrCodeDataUrl">
+        <img [src]="qrCodeDataUrl" alt="QR-Code zum Beitreten" />
+      </div>
+      <div class="qr-code-text">
+        <span>Lobby Code: <strong>{{ roomCode }}</strong></span>
+      </div>
+      <button class="mx-btn btn-secondary" (click)="showQrModal = false">
+        Schließen
+      </button>
+    </div>
+  </div>
+
+</div>
