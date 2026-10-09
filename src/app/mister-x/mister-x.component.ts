@@ -67,6 +67,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   private locationHeartbeatInterval: any = null;
 
   // Simulator / Test Mode
+  public centerManuallySet = false;
   public simulationMode = false;
   public showSimControls = false;
 
@@ -341,6 +342,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
         const pos = e.target.getLatLng();
         this.settings.centerLat = pos.lat;
         this.settings.centerLng = pos.lng;
+        this.centerManuallySet = true;
         this.updateLobbyMapCenter();
         this.broadcastSettings();
       });
@@ -348,6 +350,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       this.lobbyMap.on('click', (e: L.LeafletMouseEvent) => {
         this.settings.centerLat = e.latlng.lat;
         this.settings.centerLng = e.latlng.lng;
+        this.centerManuallySet = true;
         this.updateLobbyMapCenter();
         this.broadcastSettings();
       });
@@ -373,6 +376,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.currentLat && this.currentLng) {
       this.settings.centerLat = this.currentLat;
       this.settings.centerLng = this.currentLng;
+      this.centerManuallySet = true;
       this.updateLobbyMapCenter();
       this.broadcastSettings();
       this.showToast('Zentrum auf deinen aktuellen GPS-Standort gesetzt!');
@@ -572,6 +576,13 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
           this.currentLat = pos.coords.latitude;
           this.currentLng = pos.coords.longitude;
 
+          if (this.viewState === 'LOBBY' && this.isHost && !this.centerManuallySet) {
+            this.settings.centerLat = pos.coords.latitude;
+            this.settings.centerLng = pos.coords.longitude;
+            this.updateLobbyMapCenter();
+            this.broadcastSettings();
+          }
+
           this.onPositionUpdate(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy, pos.coords.heading || 0);
         });
       },
@@ -620,9 +631,19 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.myPlayer.accuracy = accuracy;
     this.myPlayer.heading = heading;
 
-    // Check boundary
+    // Check boundary with hysteresis / buffer to prevent false alarms near border or during GPS drift
     const distFromCenter = this.calculateDistance(lat, lng, this.settings.centerLat, this.settings.centerLng);
-    this.isOutOfBounds = distFromCenter > this.settings.radiusMeters;
+    const buffer = Math.max(25, Math.min(accuracy || 10, 50));
+
+    if (!this.isOutOfBounds) {
+      if (distFromCenter > (this.settings.radiusMeters + buffer)) {
+        this.isOutOfBounds = true;
+      }
+    } else {
+      if (distFromCenter <= (this.settings.radiusMeters + 10)) {
+        this.isOutOfBounds = false;
+      }
+    }
     this.myPlayer.isOutOfBounds = this.isOutOfBounds;
 
     // Throttle location broadcasts to MQTT (every 2.5 seconds)
@@ -1026,9 +1047,10 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     }
 
-    // Check out of bounds
+    // Check out of bounds with buffer
     const distFromCenter = this.calculateDistance(loc.lat, loc.lng, this.settings.centerLat, this.settings.centerLng);
-    player.isOutOfBounds = distFromCenter > this.settings.radiusMeters;
+    const buffer = Math.max(25, Math.min(loc.accuracy || 10, 50));
+    player.isOutOfBounds = distFromCenter > (this.settings.radiusMeters + buffer);
 
     // Visibility rules:
     // - Detective sees themselves and ALL other Detectives live.
