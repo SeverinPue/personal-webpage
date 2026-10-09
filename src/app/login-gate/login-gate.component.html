@@ -1,0 +1,45 @@
+<div class="login-overlay">
+  <div class="login-card">
+    <div class="badge-lock">🔒</div>
+    <h2>Geschützter Bereich</h2>
+    <p class="subtitle">
+      Diese Website ist privat. Bitte mit dem autorisierten Google-Konto von Severin anmelden.
+    </p>
+
+    <!-- Error message banner -->
+    <div class="error-banner" *ngIf="errorMessage">
+      <span class="error-icon">⚠️</span>
+      <span>{{ errorMessage }}</span>
+    </div>
+
+    <!-- Official Google Identity Button container -->
+    <div class="google-button-wrapper" [class.hidden-btn]="!hasGoogleClientId">
+      <div #googleBtn id="google-btn"></div>
+    </div>
+
+    <!-- Fallback / Schnell-Test Button für Entwickler -->
+    <div class="dev-login-section">
+      <div class="divider">
+        <span>Google-Konto Schnell-Login</span>
+      </div>
+
+      <form (submit)="onDevLoginSubmit($event)" class="dev-form">
+        <input
+          type="email"
+          [(ngModel)]="testEmail"
+          name="testEmail"
+          placeholder="deine-gmail-adresse@gmail.com"
+          class="email-input"
+          required
+        />
+        <button type="submit" class="submit-btn">
+          Als Severin einloggen
+        </button>
+      </form>
+
+      <p class="hint">
+        Prüft gegen die autorisierte E-Mail-Whitelist in der Konfiguration.
+      </p>
+    </div>
+  </div>
+</div>
