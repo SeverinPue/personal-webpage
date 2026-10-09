@@ -230,8 +230,14 @@
 
       <!-- Quick Action Buttons -->
       <div class="hud-tools">
+        <button class="hud-btn" (click)="rotateMap(-45)" title="45° links drehen">
+          <span style="font-size: 1.1rem; line-height: 1;">↺</span>
+        </button>
         <button class="hud-btn compass-btn" [class.rotated]="mapBearing !== 0" (click)="resetNorth()" title="Nach Norden ausrichten (0°)">
           <span class="compass-needle" [style.transform]="'rotate(' + (-mapBearing) + 'deg)'">🧭</span>
+        </button>
+        <button class="hud-btn" (click)="rotateMap(45)" title="45° rechts drehen">
+          <span style="font-size: 1.1rem; line-height: 1;">↻</span>
         </button>
         <button class="hud-btn" (click)="centerOnMe()" title="Zentrieren">
           <span>🎯</span>

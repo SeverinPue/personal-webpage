@@ -4,6 +4,13 @@ import { Subscription } from 'rxjs';
 import * as L from 'leaflet';
 import * as QRCode from 'qrcode';
 import { MisterXNetworkService } from './mister-x-network.service';
+
+if (typeof window !== 'undefined') {
+  (window as any).L = L;
+  try {
+    require('leaflet-rotate');
+  } catch (e) {}
+}
 import { MisterXAudioService } from './mister-x-audio.service';
 import { Player, Role, GameStatus, GameSettings, PingRecord, GameEventMessage } from './mister-x.types';
 
@@ -125,23 +132,53 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
     window.addEventListener('online', this.handleOnline);
 
-    // Check query params for room code (invite link)
-    this.route.queryParams.subscribe(params => {
-      if (params['room']) {
-        this.roomCode = params['room'].toUpperCase().trim();
-      }
-    });
+    // Handle query params & session restoration
+    this.subs.push(
+      this.route.queryParams.subscribe(params => {
+        const urlRoom = params['room'] ? params['room'].toUpperCase().trim() : '';
+        const savedSession = localStorage.getItem('mx_active_session');
+        let sessionObj: any = null;
+        if (savedSession) {
+          try { sessionObj = JSON.parse(savedSession); } catch (e) {}
+        }
 
-    // Restore active session if user locked phone or browser tab refreshed
-    const savedSession = localStorage.getItem('mx_active_session');
-    if (savedSession) {
-      try {
-        const sess = JSON.parse(savedSession);
-        if (sess && sess.roomCode && sess.playerName) {
-          this.roomCode = sess.roomCode;
-          this.playerName = sess.playerName;
-          this.playerId = sess.playerId || this.playerId;
-          this.isHost = !!sess.isHost;
+        if (urlRoom) {
+          // If entering via link or QR code with a room parameter:
+          // Immediately purge old session if it belongs to a different room!
+          if (sessionObj && sessionObj.roomCode !== urlRoom) {
+            localStorage.removeItem('mx_active_session');
+            sessionObj = null;
+          }
+
+          this.roomCode = urlRoom;
+          this.isHost = false;
+
+          // Ensure player has a name (fallback to generated agent name if empty)
+          if (!this.playerName.trim()) {
+            this.playerName = 'Agent ' + Math.floor(100 + Math.random() * 900);
+            localStorage.setItem('mx_player_name', this.playerName);
+          }
+
+          // Directly join room into the lobby!
+          this.joinRoomInternal().then(() => {
+            this.showToast(`Lobby ${this.roomCode} beigetreten!`);
+            this.network.publishEvent({
+              type: 'REQUEST_SYNC',
+              senderId: this.playerId,
+              senderName: this.playerName,
+              timestamp: Date.now(),
+              payload: {}
+            });
+          }).catch(err => {
+            console.warn('Auto-join failed:', err);
+          });
+
+        } else if (sessionObj && sessionObj.roomCode && sessionObj.playerName) {
+          // No room in URL: restore session after lock screen or refresh
+          this.roomCode = sessionObj.roomCode;
+          this.playerName = sessionObj.playerName;
+          this.playerId = sessionObj.playerId || this.playerId;
+          this.isHost = !!sessionObj.isHost;
           this.joinRoomInternal().then(() => {
             this.showToast(`Sitzung für Raum ${this.roomCode} wiederhergestellt!`);
             if (!this.isHost) {
@@ -155,8 +192,8 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
             }
           }).catch(() => {});
         }
-      } catch (e) {}
-    }
+      })
+    );
 
     // Check initial GPS to center default coordinates
     if ('geolocation' in navigator) {
@@ -300,6 +337,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.myRole = 'UNASSIGNED';
     this.pings = [];
     this.lastPing = null;
+    this.roomCode = '';
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { room: null },
@@ -532,8 +570,12 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       this.gameMap = null;
     }
 
+    const L_LIB: any = (typeof window !== 'undefined' && (window as any).L && (window as any).L.Map?.prototype?.setBearing)
+      ? (window as any).L
+      : L;
+
     const center: L.LatLngTuple = [this.settings.centerLat, this.settings.centerLng];
-    const map = (L as any).map(this.mapContainer.nativeElement, {
+    const map = L_LIB.map(this.mapContainer.nativeElement, {
       center: center,
       zoom: 15,
       zoomControl: false,
@@ -548,9 +590,12 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
 
     map.on('rotate' as any, () => {
       this.ngZone.run(() => {
-        this.mapBearing = Math.round((map as any).getBearing() || 0);
+        const b = typeof (map as any).getBearing === 'function' ? (map as any).getBearing() : 0;
+        this.mapBearing = Math.round((b % 360 + 360) % 360);
       });
     });
+
+    this.initTouchRotation();
 
     // Dark/tactical styled tiles or standard OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -1356,13 +1401,75 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showRoleRevealModal = false;
   }
 
-  public resetNorth() {
-    if (!this.gameMap) return;
-    if (typeof (this.gameMap as any).setBearing === 'function') {
-      (this.gameMap as any).setBearing(0);
+  public setMapBearing(deg: number, notify = true) {
+    this.mapBearing = Math.round((deg % 360 + 360) % 360);
+
+    let rotated = false;
+    if (this.gameMap && typeof (this.gameMap as any).setBearing === 'function') {
+      try {
+        (this.gameMap as any).setBearing(this.mapBearing);
+        rotated = true;
+      } catch (e) {
+        console.warn('Native setBearing error:', e);
+      }
     }
-    this.mapBearing = 0;
-    this.showToast('🧭 Karte nach Norden ausgerichtet');
+
+    if (!rotated && this.mapContainer?.nativeElement) {
+      this.mapContainer.nativeElement.style.transform = `rotate(${this.mapBearing}deg)`;
+      this.mapContainer.nativeElement.style.transformOrigin = 'center center';
+    }
+
+    if (notify) {
+      if (this.mapBearing === 0) {
+        this.showToast('🧭 Karte nach Norden ausgerichtet');
+      } else {
+        this.showToast(`🧭 Ausrichtung: ${this.mapBearing}°`);
+      }
+    }
+  }
+
+  public rotateMap(delta: number) {
+    this.setMapBearing(this.mapBearing + delta, true);
+  }
+
+  public resetNorth() {
+    this.setMapBearing(0, true);
+  }
+
+  private touchStartAngle = 0;
+  private touchStartBearing = 0;
+  private isTwoFingerRotating = false;
+
+  private initTouchRotation() {
+    if (!this.mapContainer?.nativeElement) return;
+    const el = this.mapContainer.nativeElement;
+
+    el.addEventListener('touchstart', (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        this.isTwoFingerRotating = true;
+        const dx = e.touches[1].clientX - e.touches[0].clientX;
+        const dy = e.touches[1].clientY - e.touches[0].clientY;
+        this.touchStartAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+        this.touchStartBearing = this.mapBearing;
+      }
+    }, { passive: true });
+
+    el.addEventListener('touchmove', (e: TouchEvent) => {
+      if (this.isTwoFingerRotating && e.touches.length === 2) {
+        const dx = e.touches[1].clientX - e.touches[0].clientX;
+        const dy = e.touches[1].clientY - e.touches[0].clientY;
+        const currentAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+        const delta = currentAngle - this.touchStartAngle;
+        const newBearing = Math.round((this.touchStartBearing - delta) % 360 + 360) % 360;
+        this.setMapBearing(newBearing, false);
+      }
+    }, { passive: true });
+
+    el.addEventListener('touchend', (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        this.isTwoFingerRotating = false;
+      }
+    }, { passive: true });
   }
 
   private async requestWakeLock() {
