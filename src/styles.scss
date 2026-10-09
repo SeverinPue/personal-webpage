@@ -1,53 +1,67 @@
 /* You can add global styles to this file, and also import other style files */
 
-@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500&display=swap');
 
 $color-foreground: #31636b;
 $color-background: #becdcf;
-
 html, body {
   margin: 0;
-  padding: 0;
+  padding: 20px;
   background: $color-background;
   font-family: 'Open Sans', sans-serif;
-  min-height: 100vh;
-  overflow-x: hidden;
-}
 
-p {
+}
+p{
   color: $color-foreground;
-  font-weight: bold;
-  text-decoration: none;
 }
-
-h1 {
+h1{
   color: #bd4913d1;
 }
-
-h3 {
-  font-weight: bold;
-  text-decoration: none;
-  color: #094456;
-}
-
-span {
-  text-decoration: none;
-  color: #094456;
-}
-
-a {
-  font-weight: bold;
-  text-decoration: none;
-  color: #094456;
-  transition: color 0.2s;
-
-  &:hover {
-    color: #bd4913d1;
-  }
-}
-
 .center {
   display: grid;
   justify-content: center;
   text-align: center;
+}
+
+
+span{
+  text-decoration: none;
+  color: #094456
+
+}
+h3 {
+  font-weight: bold;
+  text-decoration: none;
+  color: #094456
+}
+
+p {
+  font-weight: bold;
+  text-decoration: none;
+  color: #094456
+}
+
+a{
+  font-weight: bold;
+  text-decoration: none;
+  color: #094456
+
+}
+
+footer {
+
+  position: fixed;
+  width: 100%;
+  margin: 0;
+  left: 0;
+  bottom: 0;
+
+  grid-template-columns: 33% 33% 33%;
+
+  text-align: center;
+  padding: 3px;
+  background-color: #bbbdaf;
+  grid-column-start: 1;
+  grid-column-end: 4;
+
 }
