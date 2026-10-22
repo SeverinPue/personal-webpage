@@ -1,0 +1,393 @@
+<div class="conveniat-container">
+
+  <!-- TOP HUD RESOURCE BAR -->
+  <header class="hud-header">
+    <div class="hud-left">
+      <a routerLink="/" class="hud-back-btn" title="Zurück zur Startseite">
+        ← Startseite
+      </a>
+      <div class="hud-title-box">
+        <span class="cevi-emblem">⚜️</span>
+        <div class="hud-title-text">
+          <span class="hud-title">conveniat27</span>
+          <span class="hud-subtitle">«MIR SIND CEVI!» • Obergoms</span>
+        </div>
+      </div>
+      <div class="campfire-badge" (click)="selectBuildingTypeToBuild('campfire')" title="Zentrales Lagerfeuer">
+        <span class="cf-icon">🔥</span>
+        <span class="cf-level">Stufe {{ getCampfireLevel() }}</span>
+      </div>
+    </div>
+
+    <!-- RESSOURCEN & CEVIANER FORTSCHRITT -->
+    <div class="hud-center">
+      <!-- Cevianer-Zähler mit Fortschritt zu 5'000 -->
+      <div class="camper-milestone-box" title="Lagerteilnehmer (Ziel: 5'000 für das Conveniat 2027)">
+        <div class="milestone-label">
+          <span class="camper-icon">👥</span>
+          <strong>{{ camperCount }}</strong> / {{ camperCapacity }} Cevianer
+          <span class="target-sub">(Ziel: {{ targetCampers }})</span>
+        </div>
+        <div class="milestone-bar">
+          <div class="milestone-fill" [style.width.%]="(camperCount / targetCampers) * 100"></div>
+        </div>
+      </div>
+
+      <!-- Ressourcen -->
+      <div class="resource-pills">
+        <div class="res-pill wood-pill" title="Pionierstangen (Holz) für Zelte und Bünde">
+          <span class="res-icon">🪵</span>
+          <span class="res-val">{{ resources.wood | number:'1.0-0' }}</span>
+          <span class="res-max">/{{ resources.maxWood }}</span>
+        </div>
+
+        <div class="res-pill blachen-pill" title="Schweizer Militärblachen & Zelttücher">
+          <span class="res-icon">⛺</span>
+          <span class="res-val">{{ resources.blachen | number:'1.0-0' }}</span>
+          <span class="res-max">/{{ resources.maxBlachen }}</span>
+        </div>
+
+        <div class="res-pill money-pill" title="Cevi-Batzen (CHF) aus Kiosk & Lagerbeiträgen">
+          <span class="res-icon">💰</span>
+          <span class="res-val">{{ resources.money | number:'1.0-0' }}</span>
+          <span class="res-max">/{{ resources.maxMoney }}</span>
+        </div>
+
+        <div class="res-pill spirit-pill" title="Cevi-Geist & Stimmung (beschleunigt Anreise und Bauten)">
+          <span class="res-icon">🔥</span>
+          <span class="res-val">{{ resources.spirit | number:'1.0-0' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- HUD RECHTS (Aktionen & Menü) -->
+    <div class="hud-right">
+      <button class="hud-btn quest-btn" (click)="showQuestsModal = true" title="Quests & Meilensteine">
+        🏆 Quests
+        <span class="badge" *ngIf="completedQuestsCount > 0">{{ completedQuestsCount }}</span>
+      </button>
+
+      <button class="hud-btn info-btn" (click)="showInfoModal = true" title="Infos zu Conveniat 2027">
+        ℹ️ Info
+      </button>
+
+      <button class="hud-btn icon-only" (click)="audio.toggleMute()" [title]="audio.muted ? 'Ton einschalten' : 'Ton stummschalten'">
+        {{ audio.muted ? '🔇' : '🔊' }}
+      </button>
+
+      <button class="hud-btn icon-only danger-btn" (click)="showResetConfirm = true" title="Neues Lager beginnen (Reset)">
+        🔄
+      </button>
+    </div>
+  </header>
+
+  <!-- EVENT NOTIFICATION BANNER -->
+  <div class="active-event-banner" *ngIf="activeEvent">
+    <div class="event-icon">{{ activeEvent.icon }}</div>
+    <div class="event-details">
+      <span class="event-title">{{ activeEvent.title }}</span>
+      <span class="event-desc">{{ activeEvent.description }}</span>
+    </div>
+  </div>
+
+  <!-- TOAST BENACHRICHTIGUNG -->
+  <div class="toast-notification" *ngIf="currentNotification">
+    {{ currentNotification }}
+  </div>
+
+  <!-- HAUPT-CANVAS FLÄCHE -->
+  <div class="canvas-wrapper">
+    <canvas
+      #gameCanvas
+      class="game-canvas"
+      (mousedown)="onCanvasMouseDown($event)"
+      (mousemove)="onCanvasMouseMove($event)"
+      (mouseup)="onCanvasMouseUp($event)"
+      (wheel)="onCanvasWheel($event)"
+      (touchstart)="onCanvasTouchStart($event)"
+      (touchmove)="onCanvasTouchMove($event)"
+      (touchend)="onCanvasTouchEnd($event)">
+    </canvas>
+
+    <!-- FLOATING KAMERA CONTROLS -->
+    <div class="floating-controls">
+      <button class="ctrl-btn" (click)="zoomIn()" title="Heranzoomen">+</button>
+      <button class="ctrl-btn" (click)="centerOnCampfire()" title="Zentrieren auf Lagerfeuer">🎯</button>
+      <button class="ctrl-btn" (click)="zoomOut()" title="Herauszoomen">−</button>
+    </div>
+
+    <!-- PLATZIERUNGS-BANNER BEI AKTIVEM BAUMODUS -->
+    <div class="placement-mode-banner" *ngIf="selectedBuildingType">
+      <div class="placement-info">
+        <span class="p-icon">{{ buildingDefs[selectedBuildingType].icon }}</span>
+        <span>Bauen: <strong>{{ buildingDefs[selectedBuildingType].name }}</strong> (Klicke auf die Wiese)</span>
+      </div>
+      <button class="cancel-build-btn" (click)="cancelBuilding()">✕ Abbrechen</button>
+    </div>
+
+    <!-- GEBÄUDE INSPICIEREN / UPGRADE KARTE -->
+    <div class="inspector-card" *ngIf="selectedPlacedBuilding && !selectedBuildingType">
+      <div class="inspector-header">
+        <div class="i-title">
+          <span class="i-icon">{{ buildingDefs[selectedPlacedBuilding.type].icon }}</span>
+          <div>
+            <h4>{{ buildingDefs[selectedPlacedBuilding.type].name }}</h4>
+            <span class="i-level">Stufe {{ selectedPlacedBuilding.level }} von {{ buildingDefs[selectedPlacedBuilding.type].maxLevel }}</span>
+          </div>
+        </div>
+        <button class="close-card-btn" (click)="selectedPlacedBuilding = null">✕</button>
+      </div>
+
+      <p class="i-desc">{{ buildingDefs[selectedPlacedBuilding.type].description }}</p>
+
+      <div class="i-stats">
+        <div class="stat-item" *ngIf="buildingDefs[selectedPlacedBuilding.type].camperCapacity > 0">
+          <span class="stat-lbl">Kapazität:</span>
+          <span class="stat-val">+{{ buildingDefs[selectedPlacedBuilding.type].camperCapacity * selectedPlacedBuilding.level }} Cevianer</span>
+        </div>
+        <div class="stat-item" *ngIf="buildingDefs[selectedPlacedBuilding.type].woodProduction > 0">
+          <span class="stat-lbl">Holz-Produktion:</span>
+          <span class="stat-val">+{{ (buildingDefs[selectedPlacedBuilding.type].woodProduction * selectedPlacedBuilding.level) | number:'1.1-1' }}/s</span>
+        </div>
+        <div class="stat-item" *ngIf="buildingDefs[selectedPlacedBuilding.type].blachenProduction > 0">
+          <span class="stat-lbl">Blachen-Produktion:</span>
+          <span class="stat-val">+{{ (buildingDefs[selectedPlacedBuilding.type].blachenProduction * selectedPlacedBuilding.level) | number:'1.1-1' }}/s</span>
+        </div>
+        <div class="stat-item" *ngIf="buildingDefs[selectedPlacedBuilding.type].moneyProduction > 0">
+          <span class="stat-lbl">Batzen-Ertrag:</span>
+          <span class="stat-val">+{{ (buildingDefs[selectedPlacedBuilding.type].moneyProduction * selectedPlacedBuilding.level) | number:'1.1-1' }}/s</span>
+        </div>
+        <div class="stat-item" *ngIf="buildingDefs[selectedPlacedBuilding.type].spiritProduction > 0">
+          <span class="stat-lbl">Cevi-Geist:</span>
+          <span class="stat-val">+{{ (buildingDefs[selectedPlacedBuilding.type].spiritProduction * selectedPlacedBuilding.level) | number:'1.1-1' }}/s</span>
+        </div>
+      </div>
+
+      <div class="inspector-actions">
+        <!-- Upgrade Button -->
+        <button
+          class="upgrade-btn"
+          *ngIf="selectedPlacedBuilding.level < buildingDefs[selectedPlacedBuilding.type].maxLevel"
+          [disabled]="!canAfford(getUpgradeCost(selectedPlacedBuilding))"
+          (click)="upgradeBuilding(selectedPlacedBuilding)">
+          <span>Auf Stufe {{ selectedPlacedBuilding.level + 1 }} ausbauen</span>
+          <div class="cost-badges">
+            <span *ngIf="getUpgradeCost(selectedPlacedBuilding).wood > 0">🪵 {{ getUpgradeCost(selectedPlacedBuilding).wood }}</span>
+            <span *ngIf="getUpgradeCost(selectedPlacedBuilding).blachen > 0">⛺ {{ getUpgradeCost(selectedPlacedBuilding).blachen }}</span>
+            <span *ngIf="getUpgradeCost(selectedPlacedBuilding).money > 0">💰 {{ getUpgradeCost(selectedPlacedBuilding).money }}</span>
+          </div>
+        </button>
+
+        <div class="max-level-note" *ngIf="selectedPlacedBuilding.level >= buildingDefs[selectedPlacedBuilding.type].maxLevel">
+          ★ Maximale Ausbaustufe erreicht!
+        </div>
+
+        <!-- Demolish Button -->
+        <button
+          class="demolish-btn"
+          *ngIf="selectedPlacedBuilding.type !== 'campfire'"
+          (click)="demolishBuilding(selectedPlacedBuilding)">
+          🗑️ Abreissen (40% Rückerstattung)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- UNTEN: CLASH-OF-CLANS BAU-MENÜ DOCK -->
+  <div class="build-dock">
+    <!-- Kategorie-Tabs -->
+    <div class="build-tabs">
+      <button
+        class="tab-btn"
+        [class.active]="activeCategory === 'zelte'"
+        (click)="activeCategory = 'zelte'">
+        ⛺ Zelte
+      </button>
+      <button
+        class="tab-btn"
+        [class.active]="activeCategory === 'pionier'"
+        (click)="activeCategory = 'pionier'">
+        🪵 Pioniertechnik
+      </button>
+      <button
+        class="tab-btn"
+        [class.active]="activeCategory === 'infrastruktur'"
+        (click)="activeCategory = 'infrastruktur'">
+        🍲 Versorgung & Spass
+      </button>
+      <button
+        class="tab-btn"
+        [class.active]="activeCategory === 'wege'"
+        (click)="activeCategory = 'wege'">
+        🛤️ Schnitzelwege
+      </button>
+    </div>
+
+    <!-- Liste der Gebäude in dieser Kategorie -->
+    <div class="build-cards-scroll">
+      <ng-container *ngFor="let def of buildingDefs | keyvalue">
+        <div
+          class="build-card"
+          *ngIf="def.value.category === activeCategory && def.value.type !== 'campfire'"
+          [class.selected]="selectedBuildingType === def.value.type"
+          [class.locked]="getCampfireLevel() < def.value.minCampfireLevel"
+          [class.cannot-afford]="!canAfford(def.value.baseCost)"
+          (click)="selectBuildingTypeToBuild(def.value.type)">
+
+          <div class="card-icon-badge">
+            <span class="card-icon">{{ def.value.icon }}</span>
+            <span class="lock-overlay" *ngIf="getCampfireLevel() < def.value.minCampfireLevel">🔒 Ab Stufe {{ def.value.minCampfireLevel }}</span>
+          </div>
+
+          <div class="card-info">
+            <span class="card-name">{{ def.value.name }}</span>
+            <div class="card-costs">
+              <span *ngIf="def.value.baseCost.wood > 0">🪵 {{ def.value.baseCost.wood }}</span>
+              <span *ngIf="def.value.baseCost.blachen > 0">⛺ {{ def.value.baseCost.blachen }}</span>
+              <span *ngIf="def.value.baseCost.money > 0">💰 {{ def.value.baseCost.money }}</span>
+            </div>
+            <span class="card-benefit" *ngIf="def.value.camperCapacity > 0">
+              👥 +{{ def.value.camperCapacity }} Plätze
+            </span>
+            <span class="card-benefit" *ngIf="def.value.woodProduction > 0">
+              🪵 +{{ def.value.woodProduction }}/s Holz
+            </span>
+            <span class="card-benefit" *ngIf="def.value.blachenProduction > 0">
+              ⛺ +{{ def.value.blachenProduction }}/s Blachen
+            </span>
+            <span class="card-benefit" *ngIf="def.value.moneyProduction > 0">
+              💰 +{{ def.value.moneyProduction }}/s Batzen
+            </span>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+  </div>
+
+  <!-- QUESTS & MEILENSTEINE MODAL -->
+  <div class="modal-backdrop" *ngIf="showQuestsModal" (click)="showQuestsModal = false">
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="m-title">
+          <span>🏆</span>
+          <h3>Lager-Quests & Meilensteine</h3>
+        </div>
+        <button class="modal-close-btn" (click)="showQuestsModal = false">✕</button>
+      </div>
+
+      <div class="modal-body quests-list">
+        <div
+          class="quest-item"
+          *ngFor="let q of quests"
+          [class.completed]="q.completed"
+          [class.claimed]="q.claimed">
+
+          <div class="quest-info">
+            <div class="q-title-row">
+              <span class="q-badge" *ngIf="q.claimed">✓ Belohnt</span>
+              <span class="q-badge ready" *ngIf="q.completed && !q.claimed">Bereit!</span>
+              <h4>{{ q.title }}</h4>
+            </div>
+            <p>{{ q.description }}</p>
+            <div class="quest-progress-bar">
+              <div class="q-fill" [style.width.%]="Math.min(100, (q.progress / q.target) * 100)"></div>
+            </div>
+            <span class="q-progress-text">{{ q.progress }} / {{ q.target }}</span>
+          </div>
+
+          <div class="quest-reward-box">
+            <span class="reward-title">Belohnung:</span>
+            <div class="reward-items">
+              <span *ngIf="q.reward.wood">🪵 {{ q.reward.wood }}</span>
+              <span *ngIf="q.reward.blachen">⛺ {{ q.reward.blachen }}</span>
+              <span *ngIf="q.reward.money">💰 {{ q.reward.money }}</span>
+              <span *ngIf="q.reward.spirit">🔥 {{ q.reward.spirit }}</span>
+            </div>
+            <button
+              class="claim-btn"
+              *ngIf="q.completed && !q.claimed"
+              (click)="claimQuestReward(q)">
+              Einsammeln!
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONVENIAT 2027 INFO MODAL -->
+  <div class="modal-backdrop" *ngIf="showInfoModal" (click)="showInfoModal = false">
+    <div class="modal-dialog info-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="m-title">
+          <span>⚜️</span>
+          <h3>Über conveniat27</h3>
+        </div>
+        <button class="modal-close-btn" (click)="showInfoModal = false">✕</button>
+      </div>
+
+      <div class="modal-body info-content">
+        <div class="info-hero">
+          <div class="hero-tag">Das nationale Grosslager von Cevi Schweiz</div>
+          <h2>«MIR SIND CEVI!»</h2>
+          <p class="hero-dates">📅 24. Juli bis 2. August 2027 • 📍 Flugplatzareal Obergoms (Wallis)</p>
+        </div>
+
+        <div class="info-section">
+          <h4>Was ist das conveniat27?</h4>
+          <p>
+            Nach 18 Jahren Pause führt <strong>Cevi Schweiz</strong> (YMCA / YWCA) im Sommer 2027
+            wieder ein bundesweites Grosslager durch. Rund <strong>5'000 Kinder, Jugendliche und Leitende</strong>
+            sowie hunderte freiwillige Helferinnen und Helfer und internationale Gäste kommen zusammen,
+            um auf dem Flugplatzareal im Obergoms eine riesige Zeltstadt zu errichten.
+          </p>
+        </div>
+
+        <div class="info-features-grid">
+          <div class="feature-box">
+            <span class="f-icon">🏕️</span>
+            <h5>Riesige Zeltstadt</h5>
+            <p>Sarasani, Jurten, First- und Spatzenzelte vereint zu einer lebendigen Stadt im Wallis.</p>
+          </div>
+          <div class="feature-box">
+            <span class="f-icon">🏔️</span>
+            <h5>Malerisches Obergoms</h5>
+            <p>Eingebettet zwischen Gletschern, Bergbächen und der Gommer Bergwelt.</p>
+          </div>
+          <div class="feature-box">
+            <span class="f-icon">🤝</span>
+            <h5>Zusammenhalt & Abenteuer</h5>
+            <p>Geländespiele, Pionierbauten, Lagerfeuer, Singkreise und unvergessliche Freundschaften.</p>
+          </div>
+        </div>
+
+        <div class="info-links">
+          <a href="https://conveniat27.ch/" target="_blank" rel="noopener noreferrer" class="conveniat-web-btn">
+            🌐 Offizielle Website conveniat27.ch besuchen ↗
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESET CONFIRM MODAL -->
+  <div class="modal-backdrop" *ngIf="showResetConfirm" (click)="showResetConfirm = false">
+    <div class="modal-dialog small-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="m-title">
+          <span>⚠️</span>
+          <h3>Zeltstadt zurücksetzen?</h3>
+        </div>
+        <button class="modal-close-btn" (click)="showResetConfirm = false">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>Möchtest du deine Zeltstadt wirklich löschen und ein ganz neues Lager im Obergoms starten?</p>
+        <div class="modal-actions">
+          <button class="secondary-btn" (click)="showResetConfirm = false">Abbrechen</button>
+          <button class="danger-btn" (click)="resetGame()">Ja, neu anfangen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

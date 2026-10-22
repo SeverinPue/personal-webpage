@@ -82,6 +82,7 @@ footer {
   }
 }
 
-body:has(app-mister-x) footer {
+body:has(app-mister-x) footer,
+body:has(app-conveniat-game) footer {
   display: none !important;
 }

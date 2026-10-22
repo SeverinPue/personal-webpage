@@ -10,6 +10,7 @@ import { ZweiteSeiteComponent } from './zweite-seite/zweite-seite.component';
 import { UeberMichComponent } from './ueber-mich/ueber-mich.component';
 import { ErrorPageComponent } from './error-page/error-page.component';
 import { MisterXComponent } from './mister-x/mister-x.component';
+import { ConveniatGameComponent } from './conveniat-game/conveniat-game.component';
 
 @NgModule({
   declarations: [
@@ -19,6 +20,7 @@ import { MisterXComponent } from './mister-x/mister-x.component';
     UeberMichComponent,
     ErrorPageComponent,
     MisterXComponent,
+    ConveniatGameComponent,
   ],
   imports: [
     BrowserModule,
