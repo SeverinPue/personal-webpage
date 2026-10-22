@@ -23,7 +23,8 @@
   padding: 8px 16px;
   background: rgba(15, 23, 42, 0.94);
   backdrop-filter: blur(10px);
-  border-bottom: 2px solid rgba(2, 132, 199, 0.4);
+  border-bottom: 2px solid #C41333;
+  box-shadow: 0 4px 20px rgba(50, 51, 148, 0.3);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
   gap: 12px;
   flex-wrap: wrap;
@@ -75,7 +76,8 @@
       font-size: 1.15rem;
       font-weight: 800;
       letter-spacing: 0.5px;
-      color: #38bdf8;
+      color: #ffffff;
+      text-shadow: 0 2px 10px rgba(196, 19, 51, 0.5);
       line-height: 1.1;
     }
 
@@ -569,7 +571,7 @@
       width: 100%;
       padding: 10px 14px;
       border-radius: 8px;
-      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      background: linear-gradient(135deg, #C41333 0%, #9e0e28 100%);
       border: none;
       color: #ffffff;
       font-weight: 700;
@@ -639,7 +641,8 @@
   flex-direction: column;
   background: rgba(15, 23, 42, 0.95);
   backdrop-filter: blur(12px);
-  border-top: 2px solid rgba(2, 132, 199, 0.4);
+  border-top: 2px solid #C41333;
+  box-shadow: 0 -4px 20px rgba(50, 51, 148, 0.3);
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
   padding: 8px 14px 12px;
 }
@@ -1141,6 +1144,389 @@
 
     &:hover {
       background: #dc2626;
+    }
+  }
+}
+
+
+// ----------------- MINIGAMES & CEVI CHALLENGES -----------------
+.minigame-btn {
+  background: linear-gradient(135deg, #C41333 0%, #9e0e28 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(248, 113, 113, 0.5) !important;
+  box-shadow: 0 2px 12px rgba(196, 19, 51, 0.4) !important;
+
+  &:hover {
+    background: linear-gradient(135deg, #e11d48 0%, #be123c 100%) !important;
+    transform: translateY(-1px);
+  }
+}
+
+.mini-challenge-trigger {
+  margin-top: 4px;
+  margin-bottom: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  background: linear-gradient(135deg, rgba(196, 19, 51, 0.25) 0%, rgba(50, 51, 148, 0.3) 100%);
+  border: 1px solid rgba(196, 19, 51, 0.5);
+  border-radius: 8px;
+  color: #fecdd3;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: #C41333;
+    color: #ffffff;
+  }
+}
+
+.minigame-dialog {
+  max-width: 680px !important;
+  border-color: rgba(196, 19, 51, 0.5) !important;
+
+  .cevi-gradient-header {
+    background: linear-gradient(135deg, rgba(196, 19, 51, 0.35) 0%, rgba(50, 51, 148, 0.35) 100%) !important;
+    border-bottom: 1.5px solid rgba(196, 19, 51, 0.4) !important;
+  }
+}
+
+.minigame-tabs {
+  display: flex;
+  background: rgba(15, 23, 42, 0.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px 12px;
+  gap: 8px;
+  overflow-x: auto;
+
+  .m-tab-btn {
+    padding: 8px 16px;
+    border-radius: 20px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #94a3b8;
+    font-size: 0.84rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+
+    &:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    &.active {
+      background: linear-gradient(135deg, #C41333 0%, #323394 100%);
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.3);
+      box-shadow: 0 2px 10px rgba(196, 19, 51, 0.35);
+    }
+  }
+}
+
+.minigame-content {
+  padding: 18px 22px !important;
+
+  .q-meta-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+
+    .q-category-tag {
+      background: rgba(50, 51, 148, 0.4);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      color: #c7d2fe;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    .q-step-badge {
+      font-size: 0.78rem;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+
+    .q-solved-status {
+      font-size: 0.78rem;
+      color: #4ade80;
+      font-weight: 700;
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+  }
+
+  .q-title-heading {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #f8fafc;
+    margin: 0 0 6px 0;
+  }
+
+  .q-text {
+    font-size: 0.94rem;
+    color: #cbd5e1;
+    line-height: 1.5;
+    margin: 0 0 16px 0;
+  }
+}
+
+// Knoten & Pitech SVG Illustrationen
+.knot-diagram-card {
+  background: #090d16;
+  border: 1.5px solid rgba(50, 51, 148, 0.4);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 18px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+
+  .knot-svg {
+    width: 100%;
+    max-width: 320px;
+    height: 140px;
+    display: block;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
+  }
+}
+
+// Antwort-Optionen
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+
+  @media (max-width: 580px) {
+    grid-template-columns: 1fr;
+  }
+
+  .option-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(30, 41, 59, 0.7);
+    border: 1.5px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: #f1f5f9;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.18s ease;
+
+    &:hover:not(.correct):not(.wrong) {
+      background: rgba(51, 65, 85, 0.85);
+      border-color: rgba(196, 19, 51, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .opt-letter {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.82rem;
+      color: #cbd5e1;
+      flex-shrink: 0;
+    }
+
+    &.selected {
+      border-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.15);
+
+      .opt-letter {
+        background: #38bdf8;
+        color: #0f172a;
+      }
+    }
+
+    &.correct {
+      border-color: #22c55e !important;
+      background: rgba(34, 197, 94, 0.22) !important;
+      color: #86efac;
+
+      .opt-letter {
+        background: #22c55e !important;
+        color: #0f172a !important;
+      }
+    }
+
+    &.wrong {
+      border-color: #ef4444 !important;
+      background: rgba(239, 68, 68, 0.2) !important;
+      color: #fca5a5;
+
+      .opt-letter {
+        background: #ef4444 !important;
+        color: #ffffff !important;
+      }
+    }
+  }
+}
+
+// Feedback Karte
+.feedback-card {
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  animation: slideUp 0.2s ease;
+
+  &.success {
+    background: rgba(22, 101, 52, 0.25);
+    border: 1.5px solid rgba(34, 197, 94, 0.5);
+
+    .feedback-header {
+      color: #4ade80;
+      font-weight: 800;
+      font-size: 1.05rem;
+      margin-bottom: 6px;
+    }
+  }
+
+  &.error {
+    background: rgba(153, 27, 27, 0.25);
+    border: 1.5px solid rgba(239, 68, 68, 0.5);
+
+    .feedback-header {
+      color: #f87171;
+      font-weight: 800;
+      font-size: 1.05rem;
+      margin-bottom: 6px;
+    }
+  }
+
+  .f-explanation {
+    font-size: 0.88rem;
+    color: #f1f5f9;
+    line-height: 1.45;
+    margin: 0 0 10px 0;
+  }
+
+  .f-cevi-box {
+    background: rgba(15, 23, 42, 0.7);
+    border-left: 3px solid #C41333;
+    padding: 8px 12px;
+    border-radius: 0 8px 8px 0;
+    font-size: 0.83rem;
+    color: #cbd5e1;
+    margin-bottom: 10px;
+
+    strong {
+      color: #fbbf24;
+    }
+  }
+
+  .reward-callout {
+    border-top: 1px dashed rgba(255, 255, 255, 0.15);
+    padding-top: 10px;
+
+    .r-title {
+      font-size: 0.76rem;
+      color: #86efac;
+      font-weight: 700;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .r-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+
+      span {
+        background: rgba(34, 197, 94, 0.2);
+        border: 1px solid rgba(34, 197, 94, 0.4);
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #bbf7d0;
+      }
+    }
+  }
+}
+
+// Footer Aktionen
+.minigame-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 14px;
+
+  .nav-btn {
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #cbd5e1;
+    font-size: 0.84rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.16);
+      color: #ffffff;
+    }
+  }
+
+  .cevi-primary-btn {
+    padding: 10px 22px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #C41333 0%, #9e0e28 100%);
+    border: 1px solid #f87171;
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 0.92rem;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(196, 19, 51, 0.4);
+    transition: all 0.15s ease;
+
+    &:hover:not(:disabled) {
+      background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+      transform: translateY(-1px);
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+  }
+
+  .cevi-accent-btn {
+    padding: 10px 22px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #323394 0%, #232470 100%);
+    border: 1px solid #818cf8;
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 0.92rem;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(50, 51, 148, 0.4);
+    transition: all 0.15s ease;
+
+    &:hover {
+      background: linear-gradient(135deg, #4338ca 0%, #312e81 100%);
+      transform: translateY(-1px);
     }
   }
 }

@@ -19,6 +19,8 @@ import {
   ResourceCost
 } from './conveniat-game.types';
 import { ConveniatAudioService } from './conveniat-audio.service';
+import { MINIGAME_QUESTIONS } from './conveniat-minigames.data';
+import { MinigameCategory, MinigameQuestion } from './conveniat-game.types';
 
 export const BUILDING_DEFS: Record<BuildingType, BuildingDefinition> = {
   campfire: {
@@ -309,6 +311,19 @@ export class ConveniatGameComponent implements OnInit, OnDestroy {
   public quests: GameQuest[] = [];
   public completedQuestsCount = 0;
 
+  // Wolken-Animation
+  private cloudOffset = 0;
+
+  // Cevi Minigames & Pitech Challenges
+  public minigameQuestions = MINIGAME_QUESTIONS;
+  public showMinigameModal = false;
+  public activeMinigameCategory: MinigameCategory = 'knoten';
+  public currentQuestionIndex = 0;
+  public selectedAnswerIndex: number | null = null;
+  public answerSubmitted = false;
+  public isAnswerCorrect = false;
+  public solvedQuestionIds = new Set<string>();
+
   // Loop & Ticks
   private animationFrameId: number | null = null;
   private productionInterval: any = null;
@@ -503,7 +518,8 @@ export class ConveniatGameComponent implements OnInit, OnDestroy {
         resources: this.resources,
         camperCount: this.camperCount,
         placedBuildings: this.placedBuildings,
-        quests: this.quests.map(q => ({ id: q.id, completed: q.completed, claimed: q.claimed }))
+        quests: this.quests.map(q => ({ id: q.id, completed: q.completed, claimed: q.claimed })),
+        solvedQuestions: Array.from(this.solvedQuestionIds)
       };
       localStorage.setItem('conveniat_game_save_v1', JSON.stringify(data));
     } catch (e) {
@@ -520,6 +536,9 @@ export class ConveniatGameComponent implements OnInit, OnDestroy {
         if (data.camperCount) this.camperCount = data.camperCount;
         if (data.placedBuildings && Array.isArray(data.placedBuildings)) {
           this.placedBuildings = data.placedBuildings;
+        }
+        if (data.solvedQuestions && Array.isArray(data.solvedQuestions)) {
+          this.solvedQuestionIds = new Set(data.solvedQuestions);
         }
         if (data.quests && Array.isArray(data.quests)) {
           data.quests.forEach((sq: { id: string; completed: boolean; claimed: boolean }) => {
@@ -999,6 +1018,7 @@ export class ConveniatGameComponent implements OnInit, OnDestroy {
 
   private updateAnimation(delta: number): void {
     this.flameAngle += delta * 6;
+    this.cloudOffset = (this.cloudOffset + delta * 12) % 3000;
 
     // Walkers bewegen
     for (const w of this.walkers) {
@@ -1117,52 +1137,173 @@ export class ConveniatGameComponent implements OnInit, OnDestroy {
     this.drawWeatherEffects(ctx, w, h);
   }
 
-  // Alpen-Kulisse
+  // Malerischer Alpen-Hintergrund Obergoms Wallis
   private drawAlpineBackground(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const isRain = this.activeEvent && this.activeEvent.bonusType === 'rain';
+    const isSunny = this.activeEvent && this.activeEvent.bonusType === 'sun';
 
-    // Himmel-Farbverlauf
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.7);
+    // 1. Himmel-Farbverlauf (Schweizer Bergsommer)
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.75);
     if (isRain) {
-      skyGrad.addColorStop(0, '#475569');
-      skyGrad.addColorStop(0.6, '#64748b');
-      skyGrad.addColorStop(1, '#94a3b8');
+      skyGrad.addColorStop(0, '#334155');
+      skyGrad.addColorStop(0.5, '#475569');
+      skyGrad.addColorStop(1, '#64748b');
+    } else if (isSunny) {
+      skyGrad.addColorStop(0, '#1d4ed8'); // Strahlendes Tiefblau
+      skyGrad.addColorStop(0.35, '#38bdf8');
+      skyGrad.addColorStop(0.75, '#bae6fd');
+      skyGrad.addColorStop(1, '#fef08a'); // Warmer Gommer Sonnenschein
     } else {
-      skyGrad.addColorStop(0, '#38bdf8'); // Strahlend blauer Berg-Sommerhimmel
-      skyGrad.addColorStop(0.4, '#7dd3fc');
-      skyGrad.addColorStop(0.85, '#bae6fd');
-      skyGrad.addColorStop(1, '#e0f2fe');
+      skyGrad.addColorStop(0, '#1e3a8a'); // Schweizer Bergblau
+      skyGrad.addColorStop(0.3, '#0284c7');
+      skyGrad.addColorStop(0.65, '#38bdf8');
+      skyGrad.addColorStop(0.9, '#bae6fd');
+      skyGrad.addColorStop(1, '#e0f2fe'); // Dunst im Talboden
     }
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, w, h);
 
-    // Bergkette im Hintergrund (Walliser Alpen)
+    // 2. Bergsonne mit Corona & Lichtkranz
+    if (!isRain) {
+      const sunX = w * 0.82;
+      const sunY = h * 0.14;
+      const sunRadius = Math.min(w, h) * 0.06;
+
+      const sunGlow = ctx.createRadialGradient(sunX, sunY, sunRadius * 0.2, sunX, sunY, sunRadius * 3.5);
+      sunGlow.addColorStop(0, 'rgba(254, 240, 138, 0.9)');
+      sunGlow.addColorStop(0.3, 'rgba(253, 224, 71, 0.4)');
+      sunGlow.addColorStop(0.7, 'rgba(250, 204, 21, 0.15)');
+      sunGlow.addColorStop(1, 'rgba(250, 204, 21, 0)');
+
+      ctx.fillStyle = sunGlow;
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, sunRadius * 3.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Sonnenkern
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, sunRadius * 0.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 3. Zarte, ziehende Schönwetter-Wolken
     ctx.save();
-    // Hinterste Gipfelkette mit Schnee
-    ctx.fillStyle = isRain ? 'rgba(100, 116, 139, 0.4)' : 'rgba(186, 230, 253, 0.65)';
+    const clouds = [
+      { xBase: 0.1, y: h * 0.12, r: 35, speed: 1.0 },
+      { xBase: 0.42, y: h * 0.08, r: 48, speed: 0.8 },
+      { xBase: 0.72, y: h * 0.16, r: 38, speed: 1.2 },
+      { xBase: 1.05, y: h * 0.10, r: 42, speed: 0.9 }
+    ];
+
+    for (const c of clouds) {
+      const cx = ((c.xBase * w + this.cloudOffset * c.speed) % (w + 300)) - 150;
+      const cy = c.y;
+      const cloudGrad = ctx.createRadialGradient(cx, cy, c.r * 0.2, cx, cy, c.r * 1.5);
+      if (isRain) {
+        cloudGrad.addColorStop(0, 'rgba(100, 116, 139, 0.85)');
+        cloudGrad.addColorStop(0.6, 'rgba(71, 85, 105, 0.5)');
+        cloudGrad.addColorStop(1, 'rgba(71, 85, 105, 0)');
+      } else {
+        cloudGrad.addColorStop(0, 'rgba(255, 255, 255, 0.75)');
+        cloudGrad.addColorStop(0.6, 'rgba(255, 255, 255, 0.4)');
+        cloudGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      }
+
+      ctx.fillStyle = cloudGrad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, c.r, 0, Math.PI * 2);
+      ctx.arc(cx - c.r * 0.55, cy + c.r * 0.1, c.r * 0.7, 0, Math.PI * 2);
+      ctx.arc(cx + c.r * 0.6, cy + c.r * 0.15, c.r * 0.75, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // 4. Hinterste majestätische 4000er Gipfelkette mit echten Fels- & Schneefacetten
+    ctx.save();
+    // Fels-Schattenseite (kühler Schiefer)
+    ctx.fillStyle = isRain ? 'rgba(71, 85, 105, 0.7)' : 'rgba(148, 163, 184, 0.8)';
     ctx.beginPath();
-    ctx.moveTo(0, h * 0.35);
-    ctx.lineTo(w * 0.15, h * 0.18);
-    ctx.lineTo(w * 0.3, h * 0.3);
-    ctx.lineTo(w * 0.48, h * 0.15); // Hoher Gipfel (z.B. Galenstock / Weisshorn)
-    ctx.lineTo(w * 0.65, h * 0.32);
-    ctx.lineTo(w * 0.82, h * 0.17);
-    ctx.lineTo(w, h * 0.33);
+    ctx.moveTo(0, h * 0.45);
+    ctx.lineTo(w * 0.12, h * 0.22);
+    ctx.lineTo(w * 0.24, h * 0.36);
+    ctx.lineTo(w * 0.44, h * 0.16); // Hauptgipfel (Finsteraarhorn / Galenstock)
+    ctx.lineTo(w * 0.62, h * 0.35);
+    ctx.lineTo(w * 0.82, h * 0.19);
+    ctx.lineTo(w * 0.94, h * 0.32);
+    ctx.lineTo(w, h * 0.26);
     ctx.lineTo(w, h);
     ctx.lineTo(0, h);
     ctx.closePath();
     ctx.fill();
 
-    // Mittlere Bergkette mit Lärchenwald-Grün
-    ctx.fillStyle = isRain ? 'rgba(71, 85, 105, 0.6)' : 'rgba(56, 130, 95, 0.45)';
+    // Sonnenbeschienene Schnee- & Gletscherfacetten
+    if (!isRain) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      // Spitze 1
+      ctx.beginPath();
+      ctx.moveTo(w * 0.12, h * 0.22);
+      ctx.lineTo(w * 0.16, h * 0.28);
+      ctx.lineTo(w * 0.12, h * 0.30);
+      ctx.closePath();
+      ctx.fill();
+
+      // Hauptgipfel Schneefeld
+      ctx.beginPath();
+      ctx.moveTo(w * 0.44, h * 0.16);
+      ctx.lineTo(w * 0.50, h * 0.26);
+      ctx.lineTo(w * 0.44, h * 0.29);
+      ctx.lineTo(w * 0.39, h * 0.25);
+      ctx.closePath();
+      ctx.fill();
+
+      // Spitze 3
+      ctx.beginPath();
+      ctx.moveTo(w * 0.82, h * 0.19);
+      ctx.lineTo(w * 0.87, h * 0.27);
+      ctx.lineTo(w * 0.82, h * 0.29);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // 5. Mittlere Bergkamm-Kette mit Arven- & Lärchenwald (typisch Obergoms)
+    ctx.fillStyle = isRain ? 'rgba(51, 65, 85, 0.85)' : 'rgba(22, 101, 52, 0.75)';
     ctx.beginPath();
-    ctx.moveTo(0, h * 0.42);
-    ctx.lineTo(w * 0.22, h * 0.28);
-    ctx.lineTo(w * 0.38, h * 0.39);
-    ctx.lineTo(w * 0.58, h * 0.26);
-    ctx.lineTo(w * 0.76, h * 0.38);
-    ctx.lineTo(w * 0.92, h * 0.29);
-    ctx.lineTo(w, h * 0.4);
+    ctx.moveTo(0, h * 0.50);
+    ctx.lineTo(w * 0.20, h * 0.34);
+    ctx.lineTo(w * 0.36, h * 0.46);
+    ctx.lineTo(w * 0.54, h * 0.31);
+    ctx.lineTo(w * 0.74, h * 0.44);
+    ctx.lineTo(w * 0.90, h * 0.33);
+    ctx.lineTo(w, h * 0.45);
+    ctx.lineTo(w, h);
+    ctx.lineTo(0, h);
+    ctx.closePath();
+    ctx.fill();
+
+    // Stilisierte Tannen-Silhouetten entlang des mittleren Bergkammes
+    ctx.fillStyle = isRain ? 'rgba(30, 41, 59, 0.9)' : 'rgba(20, 83, 45, 0.85)';
+    const pinePoints = [0.18, 0.22, 0.32, 0.38, 0.52, 0.56, 0.70, 0.76, 0.88];
+    for (const px of pinePoints) {
+      const tx = w * px;
+      const ty = h * (0.33 + Math.sin(px * 10) * 0.08);
+      ctx.beginPath();
+      ctx.moveTo(tx, ty - 12);
+      ctx.lineTo(tx + 4, ty);
+      ctx.lineTo(tx - 4, ty);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // 6. Vordergrund: Weiche Talhügel des Gommer Hochplateaus
+    const valleyGrad = ctx.createLinearGradient(0, h * 0.45, 0, h);
+    valleyGrad.addColorStop(0, isRain ? 'rgba(30, 41, 59, 0.9)' : 'rgba(21, 128, 61, 0.85)');
+    valleyGrad.addColorStop(1, isRain ? '#0f172a' : '#14532d');
+    ctx.fillStyle = valleyGrad;
+    ctx.beginPath();
+    ctx.moveTo(0, h * 0.58);
+    ctx.quadraticCurveTo(w * 0.35, h * 0.48, w * 0.65, h * 0.56);
+    ctx.quadraticCurveTo(w * 0.85, h * 0.62, w, h * 0.54);
     ctx.lineTo(w, h);
     ctx.lineTo(0, h);
     ctx.closePath();
@@ -1171,16 +1312,45 @@ export class ConveniatGameComponent implements OnInit, OnDestroy {
     ctx.restore();
   }
 
-  // Isometrisches Wiesengitter
+  // Isometrisches Wiesengitter mit Schweizer Bergblumen, Enzian, Edelweiss & 3D-Kanten
   private drawIsometricGround(ctx: CanvasRenderingContext2D): void {
     const tileW = this.tileWidth * this.zoom;
     const tileH = this.tileHeight * this.zoom;
 
+    // 1. 3D-Klippenrand / Sockel für die Zeltstadt-Insel
+    const cliffDepth = 14 * this.zoom;
+    ctx.save();
+    for (let x = 0; x < this.gridSize; x++) {
+      // Unterer Süd-Ost-Rand (x, gridSize - 1)
+      const pt = this.gridToScreen(x, this.gridSize - 1);
+      ctx.beginPath();
+      ctx.moveTo(pt.x, pt.y + tileH);
+      ctx.lineTo(pt.x + tileW / 2, pt.y + tileH / 2);
+      ctx.lineTo(pt.x + tileW / 2, pt.y + tileH / 2 + cliffDepth);
+      ctx.lineTo(pt.x, pt.y + tileH + cliffDepth);
+      ctx.closePath();
+      ctx.fillStyle = '#3f2512'; // Erd- und Granitschicht
+      ctx.fill();
+
+      // Unterer Süd-West-Rand (gridSize - 1, x)
+      const pt2 = this.gridToScreen(this.gridSize - 1, x);
+      ctx.beginPath();
+      ctx.moveTo(pt2.x - tileW / 2, pt2.y + tileH / 2);
+      ctx.lineTo(pt2.x, pt2.y + tileH);
+      ctx.lineTo(pt2.x, pt2.y + tileH + cliffDepth);
+      ctx.lineTo(pt2.x - tileW / 2, pt2.y + tileH / 2 + cliffDepth);
+      ctx.closePath();
+      ctx.fillStyle = '#5c3818';
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // 2. Kacheln zeichnen
     for (let x = 0; x < this.gridSize; x++) {
       for (let y = 0; y < this.gridSize; y++) {
         const pt = this.gridToScreen(x, y);
 
-        // Kachel-Rauten zeichnen
+        // Kachel-Raute
         ctx.beginPath();
         ctx.moveTo(pt.x, pt.y);
         ctx.lineTo(pt.x + tileW / 2, pt.y + tileH / 2);
@@ -1188,20 +1358,113 @@ export class ConveniatGameComponent implements OnInit, OnDestroy {
         ctx.lineTo(pt.x - tileW / 2, pt.y + tileH / 2);
         ctx.closePath();
 
-        // Leichtes Schachbrettmuster für saftiges Gras
+        // Lebendige Walliser Wiesenfarbe
         const isAlt = (x + y) % 2 === 0;
-        ctx.fillStyle = isAlt ? '#4ade80' : '#22c55e'; // Walliser Bergwiese
+        ctx.fillStyle = isAlt ? '#34a853' : '#2e944b'; // Saftiges Gommer Berggras
         ctx.fill();
 
-        // Sanfter Rand
-        ctx.strokeStyle = 'rgba(21, 128, 61, 0.25)';
+        // 3D-Lichtkanten: Sonnenkante oben hell, Schattenkante unten
+        ctx.strokeStyle = 'rgba(134, 239, 172, 0.45)';
         ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(pt.x - tileW / 2, pt.y + tileH / 2);
+        ctx.lineTo(pt.x, pt.y);
+        ctx.lineTo(pt.x + tileW / 2, pt.y + tileH / 2);
         ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(20, 83, 45, 0.35)';
+        ctx.beginPath();
+        ctx.moveTo(pt.x + tileW / 2, pt.y + tileH / 2);
+        ctx.lineTo(pt.x, pt.y + tileH);
+        ctx.lineTo(pt.x - tileW / 2, pt.y + tileH / 2);
+        ctx.stroke();
+
+        // 3. Organische Bergwiesen-Details (Enzian, Edelweiss, Kiesel, Grasbüschel)
+        // Nur wenn auf der Kachel kein Gebäude steht
+        const hasBuilding = this.findBuildingAt(x, y);
+        if (!hasBuilding && this.zoom >= 0.75) {
+          const seed = ((x * 47 + y * 73) * 9301 + 49297) % 233280;
+          const rand = seed / 233280;
+
+          const cx = pt.x;
+          const cy = pt.y + tileH * 0.52;
+
+          if (rand < 0.16) {
+            // 💙 Blauer Walliser Enzian
+            const fx = cx + (rand * 2 - 1) * (tileW * 0.22);
+            const fy = cy + ((rand * 5) % 1 * 2 - 1) * (tileH * 0.18);
+            ctx.fillStyle = '#1d4ed8'; // Tiefblau
+            for (let a = 0; a < 5; a++) {
+              const ang = (a * Math.PI * 2) / 5;
+              ctx.beginPath();
+              ctx.arc(fx + Math.cos(ang) * 2.6, fy + Math.sin(ang) * 1.8, 1.8, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.fillStyle = '#facc15'; // Gelbe Mitte
+            ctx.beginPath();
+            ctx.arc(fx, fy, 1.2, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (rand >= 0.16 && rand < 0.28) {
+            // ✨ Weisses Schweizer Edelweiss
+            const fx = cx + ((rand * 7) % 1 * 2 - 1) * (tileW * 0.22);
+            const fy = cy + ((rand * 3) % 1 * 2 - 1) * (tileH * 0.18);
+            ctx.fillStyle = '#f8fafc'; // Weisse Wollblüten
+            for (let a = 0; a < 6; a++) {
+              const ang = (a * Math.PI * 2) / 6;
+              ctx.beginPath();
+              ctx.arc(fx + Math.cos(ang) * 3.2, fy + Math.sin(ang) * 2.2, 1.9, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.fillStyle = '#d97706'; // Goldene Staubgefässe
+            ctx.beginPath();
+            ctx.arc(fx, fy, 1.4, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (rand >= 0.28 && rand < 0.40) {
+            // 🌸 Pinke Alpenrose
+            const fx = cx + ((rand * 9) % 1 * 2 - 1) * (tileW * 0.2);
+            const fy = cy + ((rand * 4) % 1 * 2 - 1) * (tileH * 0.16);
+            ctx.fillStyle = '#f43f5e';
+            ctx.beginPath();
+            ctx.arc(fx, fy, 2.4, 0, Math.PI * 2);
+            ctx.arc(fx + 2, fy - 1, 1.8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fef08a';
+            ctx.beginPath();
+            ctx.arc(fx, fy, 0.9, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (rand >= 0.40 && rand < 0.60) {
+            // 🌱 Zartes Grasbüschel
+            const gx = cx + ((rand * 11) % 1 * 2 - 1) * (tileW * 0.25);
+            const gy = cy + ((rand * 6) % 1 * 2 - 1) * (tileH * 0.2);
+            ctx.strokeStyle = '#86efac';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(gx - 2, gy);
+            ctx.lineTo(gx - 4, gy - 5 * this.zoom);
+            ctx.moveTo(gx, gy);
+            ctx.lineTo(gx, gy - 7 * this.zoom);
+            ctx.moveTo(gx + 2, gy);
+            ctx.lineTo(gx + 4, gy - 5 * this.zoom);
+            ctx.stroke();
+          } else if (rand >= 0.60 && rand < 0.70) {
+            // 🪨 Rhonegletscher-Granitkiesel
+            const kx = cx + ((rand * 13) % 1 * 2 - 1) * (tileW * 0.24);
+            const ky = cy + ((rand * 8) % 1 * 2 - 1) * (tileH * 0.18);
+            ctx.fillStyle = '#64748b'; // Schatten
+            ctx.beginPath();
+            ctx.ellipse(kx + 1, ky + 1, 2.8 * this.zoom, 1.8 * this.zoom, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#cbd5e1'; // Sonnenfläche
+            ctx.beginPath();
+            ctx.ellipse(kx, ky, 2.5 * this.zoom, 1.6 * this.zoom, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
       }
     }
   }
 
-  // Pfade
+  // Pfade: Authentischer Walliser Holzschnitzelweg mit Rindenstruktur
   private drawPaths(ctx: CanvasRenderingContext2D): void {
     const tileW = this.tileWidth * this.zoom;
     const tileH = this.tileHeight * this.zoom;
@@ -1216,10 +1479,34 @@ export class ConveniatGameComponent implements OnInit, OnDestroy {
       ctx.lineTo(pt.x - tileW / 2, pt.y + tileH / 2);
       ctx.closePath();
 
-      // Holzschnitzel-Farbe
-      ctx.fillStyle = '#d97706';
+      // Dunklere Wald- & Rindenunterlage
+      ctx.fillStyle = '#92400e';
       ctx.fill();
-      ctx.strokeStyle = '#b45309';
+
+      // Hellere Schnitzelspäne auf dem Weg
+      if (this.zoom >= 0.75) {
+        const chips = [
+          { dx: 0, dy: 0, color: '#f59e0b', w: 4, h: 2, rot: 0.3 },
+          { dx: -tileW * 0.18, dy: -tileH * 0.1, color: '#d97706', w: 5, h: 2, rot: -0.4 },
+          { dx: tileW * 0.18, dy: tileH * 0.1, color: '#b45309', w: 4, h: 2, rot: 0.7 },
+          { dx: -tileW * 0.12, dy: tileH * 0.15, color: '#f59e0b', w: 3, h: 1.5, rot: 1.2 },
+          { dx: tileW * 0.15, dy: -tileH * 0.15, color: '#d97706', w: 4, h: 2, rot: -0.8 }
+        ];
+
+        const cx = pt.x;
+        const cy = pt.y + tileH * 0.5;
+
+        for (const c of chips) {
+          ctx.save();
+          ctx.translate(cx + c.dx, cy + c.dy);
+          ctx.rotate(c.rot);
+          ctx.fillStyle = c.color;
+          ctx.fillRect(-c.w / 2, -c.h / 2, c.w * this.zoom, c.h * this.zoom);
+          ctx.restore();
+        }
+      }
+
+      ctx.strokeStyle = '#78350f';
       ctx.lineWidth = 1;
       ctx.stroke();
     }
@@ -2050,4 +2337,93 @@ export class ConveniatGameComponent implements OnInit, OnDestroy {
       this.currentNotification = null;
     }, 4500);
   }
+
+  // --- Cevi Minigames & Pitech Challenges ---
+  public openMinigames(category?: MinigameCategory): void {
+    if (category) {
+      this.activeMinigameCategory = category;
+    }
+    this.currentQuestionIndex = 0;
+    this.selectedAnswerIndex = null;
+    this.answerSubmitted = false;
+    this.showMinigameModal = true;
+    this.audio.playCollect();
+  }
+
+  public selectMinigameCategory(cat: MinigameCategory): void {
+    this.activeMinigameCategory = cat;
+    this.currentQuestionIndex = 0;
+    this.selectedAnswerIndex = null;
+    this.answerSubmitted = false;
+  }
+
+  public getCategoryQuestions(): MinigameQuestion[] {
+    return this.minigameQuestions.filter(q => q.category === this.activeMinigameCategory);
+  }
+
+  public getCurrentQuestion(): MinigameQuestion | null {
+    const list = this.getCategoryQuestions();
+    return list[this.currentQuestionIndex] || list[0] || null;
+  }
+
+  public selectAnswer(idx: number): void {
+    if (this.answerSubmitted) return;
+    this.selectedAnswerIndex = idx;
+  }
+
+  public submitAnswer(): void {
+    const q = this.getCurrentQuestion();
+    if (!q || this.selectedAnswerIndex === null || this.answerSubmitted) return;
+    this.answerSubmitted = true;
+    this.isAnswerCorrect = (this.selectedAnswerIndex === q.correctIndex);
+
+    if (this.isAnswerCorrect) {
+      this.audio.playUpgrade();
+      if (!this.solvedQuestionIds.has(q.id)) {
+        this.solvedQuestionIds.add(q.id);
+        this.resources.wood = Math.min(this.resources.maxWood, this.resources.wood + q.reward.wood);
+        this.resources.blachen = Math.min(this.resources.maxBlachen, this.resources.blachen + q.reward.blachen);
+        this.resources.money = Math.min(this.resources.maxMoney, this.resources.money + q.reward.money);
+        this.resources.spirit += q.reward.spirit;
+        this.saveGame();
+        this.showToast(`🎉 Richtig! +${q.reward.wood} Holz, +${q.reward.blachen} Blachen, +${q.reward.money} Batzen, +${q.reward.spirit} Geist!`);
+      }
+    } else {
+      this.audio.playDemolish();
+    }
+  }
+
+  public nextQuestion(): void {
+    const list = this.getCategoryQuestions();
+    this.selectedAnswerIndex = null;
+    this.answerSubmitted = false;
+    this.isAnswerCorrect = false;
+    if (this.currentQuestionIndex + 1 < list.length) {
+      this.currentQuestionIndex++;
+    } else {
+      this.currentQuestionIndex = 0;
+    }
+  }
+
+  public prevQuestion(): void {
+    const list = this.getCategoryQuestions();
+    this.selectedAnswerIndex = null;
+    this.answerSubmitted = false;
+    this.isAnswerCorrect = false;
+    if (this.currentQuestionIndex > 0) {
+      this.currentQuestionIndex--;
+    } else {
+      this.currentQuestionIndex = list.length - 1;
+    }
+  }
+
+  public isCurrentQuestionSolved(): boolean {
+    const q = this.getCurrentQuestion();
+    return q ? this.solvedQuestionIds.has(q.id) : false;
+  }
+
+  public getUnsolvedCount(): number {
+    return this.minigameQuestions.filter(q => !this.solvedQuestionIds.has(q.id)).length;
+  }
+
 }

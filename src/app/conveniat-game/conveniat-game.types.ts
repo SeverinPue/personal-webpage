@@ -106,3 +106,25 @@ export interface CampEvent {
   bonusType: 'production' | 'spirit' | 'money' | 'rain' | 'sun';
   multiplier: number;
 }
+
+// MINIGAMES: Knoten, Pitech & Cevi-Wissen
+export type MinigameCategory = 'knoten' | 'pitech' | 'cevi_wissen';
+
+export interface MinigameQuestion {
+  id: string;
+  category: MinigameCategory;
+  categoryLabel: string;
+  title: string;
+  question: string;
+  imageSvgType?: 'achterknoten' | 'weberknoten' | 'mastwurf' | 'samariterknoten' | 'fischerknoten' | 'kreuzbund' | 'dreibockbund' | 'sarasani';
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+  ceviContext: string;
+  reward: {
+    wood: number;
+    blachen: number;
+    money: number;
+    spirit: number;
+  };
+}
