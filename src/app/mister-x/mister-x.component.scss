@@ -977,13 +977,6 @@
         height: 36px;
       }
     }
-
-    .hud-ping-widget {
-      order: 3;
-      width: 100%;
-      justify-content: center;
-      padding: 6px 14px;
-    }
   }
 }
 
@@ -1043,66 +1036,9 @@
   }
 }
 
-.hud-ping-widget {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(9, 9, 11, 0.93);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  padding: 6px 16px;
-  border-radius: 9999px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
-  transition: all 0.2s ease;
-
-  .ping-sonar-icon {
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .ping-countdown-block {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-
-    .ping-label {
-      font-size: 0.68rem;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      font-weight: 700;
-      letter-spacing: 0.8px;
-    }
-
-    .ping-timer {
-      font-size: 1.08rem;
-      font-weight: 800;
-      color: #ffffff;
-      letter-spacing: 1px;
-      font-family: var(--mono-font);
-      font-variant-numeric: tabular-nums;
-    }
-  }
-
-  /* Urgent (<15s): Inverted Pure White Alert Pill */
-  &.urgent {
-    background: #ffffff;
-    color: #000000;
-    border-color: #000000;
-    animation: urgentMonoPulse 0.85s infinite alternate;
-
-    .ping-sonar-icon,
-    .ping-countdown-block .ping-label,
-    .ping-countdown-block .ping-timer {
-      color: #000000;
-    }
-  }
-}
-
 @keyframes urgentMonoPulse {
-  from { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35), 0 6px 20px rgba(0, 0, 0, 0.6); }
-  to { box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.7), 0 6px 24px rgba(0, 0, 0, 0.8); }
+  from { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35), 0 4px 14px rgba(0, 0, 0, 0.6); }
+  to { box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.7), 0 6px 18px rgba(0, 0, 0, 0.8); }
 }
 
 .hud-tools {
@@ -1209,10 +1145,62 @@
   max-width: 560px;
   margin: 0 auto;
   z-index: 1000;
+  display: flex;
+  flex-direction: column;
   pointer-events: none;
 
   > * {
     pointer-events: auto;
+  }
+}
+
+.hud-ping-mini {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  background: rgba(9, 9, 11, 0.92);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  padding: 4px 10px;
+  border-radius: 9999px;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+  transition: all 0.2s ease;
+
+  svg {
+    flex-shrink: 0;
+    opacity: 0.9;
+  }
+
+  .ping-mini-label {
+    font-size: 0.62rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .ping-mini-timer {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: 0.6px;
+    font-family: var(--mono-font);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &.urgent {
+    background: #ffffff;
+    color: #000000;
+    border-color: #000000;
+    animation: urgentMonoPulse 0.85s infinite alternate;
+
+    .ping-mini-label,
+    .ping-mini-timer {
+      color: #000000;
+    }
   }
 }
 
@@ -1415,6 +1403,25 @@
       background: #ffffff;
       color: #000000;
       border-color: #ffffff;
+    }
+
+    &.going-quick-btn {
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.45);
+      background: rgba(220, 38, 38, 0.12);
+
+      &:hover {
+        color: #ffffff;
+        border-color: #ef4444;
+        background: rgba(220, 38, 38, 0.28);
+      }
+
+      &.active {
+        background: #dc2626;
+        color: #ffffff;
+        border-color: #ffffff;
+        box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.45);
+      }
     }
 
     &.btn-end-game {

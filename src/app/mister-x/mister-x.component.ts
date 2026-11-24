@@ -9,6 +9,56 @@ if (typeof window !== 'undefined') {
   (window as any).L = L;
   try {
     require('leaflet-rotate');
+    // Fix leaflet-rotate (v0.2.8) + Leaflet 1.9.4 vector drift during mobile pinch-zoom & twist:
+    // 1. Ensure Renderer container always keeps transform-origin: 0 0 (L.version string check fails on 1.9.4)
+    // 2. Match GridLayer._setZoomTransform's exact world-pixel origin math so SVG/Canvas scales in lockstep with tiles
+    // 3. Reproject vector paths (_reset) when 'rotate' fires mid-pinch so _zoom never desyncs from path coordinates
+    const RProto: any = (L as any).Renderer?.prototype;
+    if (RProto && !RProto.__mxZoomPatched) {
+      RProto.__mxZoomPatched = true;
+      const origOnAdd = RProto.onAdd;
+      const origUpdate = RProto._update;
+      const origGetEvents = RProto.getEvents;
+
+      RProto.onAdd = function () {
+        origOnAdd.apply(this, arguments);
+        if (this._container) {
+          this._container.classList.add('leaflet-zoom-animated');
+          this._container.style.transformOrigin = '0 0';
+        }
+      };
+
+      RProto._update = function () {
+        origUpdate.apply(this, arguments);
+        if (this._map && this._bounds) {
+          this._origin = this._bounds.min.add(this._map.getPixelOrigin());
+        }
+      };
+
+      RProto._onRotate = function () {
+        if (!this._map || this._map._animatingZoom) return;
+        this._reset();
+      };
+
+      RProto.getEvents = function () {
+        const events = origGetEvents.apply(this, arguments);
+        if (this._map && this._map._rotate) {
+          events.rotate = this._onRotate;
+        }
+        return events;
+      };
+
+      RProto._updateTransform = function (center: L.LatLngExpression, zoom: number) {
+        if (!this._map || !this._container || !this._bounds) return;
+        const scale = this._map.getZoomScale(zoom, this._zoom);
+        const origin = this._origin || this._bounds.min.add(this._map.getPixelOrigin());
+        const offset = origin
+          .multiplyBy(scale)
+          .subtract((this._map as any)._getNewPixelOrigin(center, zoom))
+          .round();
+        L.DomUtil.setTransform(this._container, offset, scale);
+      };
+    }
   } catch (e) {}
 }
 import { MisterXAudioService } from './mister-x-audio.service';
@@ -132,7 +182,9 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   private lobbyMap: L.Map | null = null;
   private gameTileLayer: L.TileLayer | null = null;
   private lobbyTileLayer: L.TileLayer | null = null;
+  private boundaryHaloCircle: L.Circle | null = null;
   private boundaryCircle: L.Circle | null = null;
+  private lobbyBoundaryHaloCircle: L.Circle | null = null;
   private lobbyBoundaryCircle: L.Circle | null = null;
   private lobbyCenterMarker: L.Marker | null = null;
   private playerMarkers = new Map<string, L.Marker>();
@@ -544,19 +596,31 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   private applyMapVectorContrast() {
     const isAerial = this.mapStyle === 'SWISSTOPO_AERIAL';
     const strokeColor = isAerial ? '#ffffff' : '#09090b';
+    const boundaryColor = isAerial ? '#38bdf8' : '#2563eb';
+    const boundaryHaloColor = isAerial ? '#09090b' : '#ffffff';
 
+    if (this.lobbyBoundaryHaloCircle) {
+      this.lobbyBoundaryHaloCircle.setStyle({
+        color: boundaryHaloColor
+      });
+    }
     if (this.lobbyBoundaryCircle) {
       this.lobbyBoundaryCircle.setStyle({
-        color: strokeColor,
-        fillColor: strokeColor,
-        fillOpacity: isAerial ? 0.08 : 0.1
+        color: boundaryColor,
+        fillColor: boundaryColor,
+        fillOpacity: isAerial ? 0.1 : 0.08
+      });
+    }
+    if (this.boundaryHaloCircle) {
+      this.boundaryHaloCircle.setStyle({
+        color: boundaryHaloColor
       });
     }
     if (this.boundaryCircle) {
       this.boundaryCircle.setStyle({
-        color: strokeColor,
-        fillColor: strokeColor,
-        fillOpacity: isAerial ? 0.06 : 0.07
+        color: boundaryColor,
+        fillColor: boundaryColor,
+        fillOpacity: isAerial ? 0.08 : 0.06
       });
     }
     if (this.pingTrailPolyline) {
@@ -581,15 +645,26 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.lobbyTileLayer = this.createBaseTileLayer(this.mapStyle).addTo(this.lobbyMap);
 
     const isAerial = this.mapStyle === 'SWISSTOPO_AERIAL';
-    const strokeColor = isAerial ? '#ffffff' : '#09090b';
+    const boundaryColor = isAerial ? '#38bdf8' : '#2563eb';
+    const boundaryHaloColor = isAerial ? '#09090b' : '#ffffff';
+
+    this.lobbyBoundaryHaloCircle = L.circle([this.settings.centerLat, this.settings.centerLng], {
+      radius: this.settings.radiusMeters,
+      color: boundaryHaloColor,
+      weight: 8,
+      opacity: 0.9,
+      fill: false,
+      interactive: false
+    }).addTo(this.lobbyMap);
 
     this.lobbyBoundaryCircle = L.circle([this.settings.centerLat, this.settings.centerLng], {
       radius: this.settings.radiusMeters,
-      color: strokeColor,
-      fillColor: strokeColor,
-      fillOpacity: isAerial ? 0.08 : 0.1,
-      weight: 2.5,
-      dashArray: '8, 6'
+      color: boundaryColor,
+      fillColor: boundaryColor,
+      fillOpacity: isAerial ? 0.1 : 0.08,
+      weight: 4,
+      dashArray: '10, 8',
+      interactive: false
     }).addTo(this.lobbyMap);
 
     // Center pin icon (monochrome target bullseye)
@@ -629,6 +704,9 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
 
   public updateRadius(meters: number) {
     this.settings.radiusMeters = meters;
+    if (this.lobbyBoundaryHaloCircle) {
+      this.lobbyBoundaryHaloCircle.setRadius(meters);
+    }
     if (this.lobbyBoundaryCircle) {
       this.lobbyBoundaryCircle.setRadius(meters);
     }
@@ -656,6 +734,10 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   private updateLobbyMapCenter() {
     if (this.lobbyMap && this.lobbyBoundaryCircle && this.lobbyCenterMarker) {
       const latlng: L.LatLngTuple = [this.settings.centerLat, this.settings.centerLng];
+      if (this.lobbyBoundaryHaloCircle) {
+        this.lobbyBoundaryHaloCircle.setLatLng(latlng);
+        this.lobbyBoundaryHaloCircle.setRadius(this.settings.radiusMeters);
+      }
       this.lobbyBoundaryCircle.setLatLng(latlng);
       this.lobbyBoundaryCircle.setRadius(this.settings.radiusMeters);
       this.lobbyCenterMarker.setLatLng(latlng);
@@ -788,6 +870,14 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     }) as L.Map;
     this.gameMap = map;
 
+    // Prevent Leaflet's default touchZoom from fighting leaflet-rotate's unified 2-finger touchGestures
+    if ((map as any).touchGestures && map.touchZoom) {
+      map.touchZoom.disable();
+      (map as any).touchGestures.enable();
+      (map as any).touchGestures.zoom = true;
+      (map as any).touchGestures.rotate = true;
+    }
+
     this.mapBearing = 0;
 
     map.on('rotate' as any, () => {
@@ -798,7 +888,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       });
     });
 
-    map.on('zoomend', () => {
+    map.on('zoom zoomend', () => {
       this.refreshTacticalArrowheads();
     });
 
@@ -824,7 +914,9 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
 
-    this.initTouchRotation();
+    if (typeof (map as any).setBearing !== 'function') {
+      this.initTouchRotation();
+    }
     this.initTacticalDrawingEvents();
 
     // swisstopo / selectable map tiles
@@ -832,15 +924,26 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const isAerial = this.mapStyle === 'SWISSTOPO_AERIAL';
     const strokeColor = isAerial ? '#ffffff' : '#09090b';
+    const boundaryColor = isAerial ? '#38bdf8' : '#2563eb';
+    const boundaryHaloColor = isAerial ? '#09090b' : '#ffffff';
 
-    // Boundary zone circle
+    // Boundary zone outer contrast halo + Electric Blue ring
+    this.boundaryHaloCircle = L.circle(center, {
+      radius: this.settings.radiusMeters,
+      color: boundaryHaloColor,
+      weight: 8,
+      opacity: 0.9,
+      fill: false,
+      interactive: false
+    }).addTo(map);
+
     this.boundaryCircle = L.circle(center, {
       radius: this.settings.radiusMeters,
-      color: strokeColor,
-      fillColor: strokeColor,
-      fillOpacity: isAerial ? 0.06 : 0.07,
-      weight: 2.5,
-      dashArray: '8, 6',
+      color: boundaryColor,
+      fillColor: boundaryColor,
+      fillOpacity: isAerial ? 0.08 : 0.06,
+      weight: 4,
+      dashArray: '10, 8',
       interactive: false
     }).addTo(map);
 
@@ -1610,6 +1713,19 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  public activateGoingQuickTool() {
+    if (this.myRole !== 'DETECTIVE') return;
+    if (this.activeTacticalTool === 'GOING') {
+      this.selectTacticalTool('NONE');
+      return;
+    }
+    this.closeAllDrawers();
+    this.tacticalBarOpen = true;
+    this.activeTacticalTool = 'NONE';
+    this.selectTacticalTool('GOING');
+    this.showToast('Tippe jetzt auf die Karte, wohin du gehst!');
+  }
+
   public closeTacticalBar() {
     this.tacticalBarOpen = false;
     this.selectTacticalTool('NONE');
@@ -2261,7 +2377,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
 
       const updateArrow = () => {
         if (!this.gameMap || !this.tacticalLayers.has(ann.id)) return;
-        arrowMarker.setIcon(this.createArrowIcon(prevPt, endPt));
+        this.updateArrowMarkerElement(arrowMarker, prevPt, endPt);
       };
       this.tacticalArrowUpdaters.push(updateArrow);
 
@@ -2349,7 +2465,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
             }).addTo(this.gameMap);
             const updateMidArrow = () => {
               if (!this.gameMap || !this.tacticalLayers.has(ann.id)) return;
-              midArrow.setIcon(this.createArrowIcon(origPt, destPt));
+              this.updateArrowMarkerElement(midArrow, origPt, destPt);
             };
             this.tacticalArrowUpdaters.push(updateMidArrow);
 
@@ -2392,7 +2508,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
         className: 'mx-tactic-div-icon',
         html: pinHtml,
         iconSize: [96, 54],
-        iconAnchor: [48, 26]
+        iconAnchor: [48, 16]
       });
 
       const marker = L.marker(center, { icon, zIndexOffset: 460 }).addTo(this.gameMap);
@@ -2405,15 +2521,28 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private createArrowIcon(prevPt: [number, number], endPt: [number, number]): L.DivIcon {
-    let angleDeg = 0;
+  private computeArrowAngleDeg(prevPt: [number, number], endPt: [number, number]): number {
     if (this.gameMap) {
       try {
         const p1 = this.gameMap.latLngToContainerPoint(prevPt);
         const p2 = this.gameMap.latLngToContainerPoint(endPt);
-        angleDeg = Math.round((Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180) / Math.PI + 90);
+        return Math.round((Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180) / Math.PI + 90);
       } catch (e) {}
     }
+    return 0;
+  }
+
+  private updateArrowMarkerElement(marker: L.Marker, prevPt: [number, number], endPt: [number, number]) {
+    const iconEl = marker.getElement();
+    if (!iconEl) return;
+    const headEl = iconEl.querySelector('.tactic-arrow-head') as HTMLElement | null;
+    if (headEl) {
+      headEl.style.transform = `rotate(${this.computeArrowAngleDeg(prevPt, endPt)}deg)`;
+    }
+  }
+
+  private createArrowIcon(prevPt: [number, number], endPt: [number, number]): L.DivIcon {
+    const angleDeg = this.computeArrowAngleDeg(prevPt, endPt);
     return L.divIcon({
       className: 'mx-tactic-div-icon',
       html: `
