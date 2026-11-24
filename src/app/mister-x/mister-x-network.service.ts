@@ -1,7 +1,7 @@
 import { Injectable, NgZone } from '@angular/core';
 import { Subject } from 'rxjs';
 import * as mqtt from 'mqtt';
-import { GameEventMessage, Player } from './mister-x.types';
+import { GameEventMessage, Player, TacticalEventMessage } from './mister-x.types';
 
 @Injectable({
   providedIn: 'root'
@@ -10,9 +10,11 @@ export class MisterXNetworkService {
   private client: mqtt.MqttClient | null = null;
   private roomCode: string = '';
   private currentPlayer: Player | null = null;
+  private tacticsEnabled = false;
 
   public event$ = new Subject<GameEventMessage>();
   public location$ = new Subject<{ playerId: string; playerName?: string; role?: any; lat: number; lng: number; accuracy?: number; heading?: number; timestamp?: number }>();
+  public tactics$ = new Subject<TacticalEventMessage>();
   public connected$ = new Subject<boolean>();
 
   // Free public WebSocket MQTT brokers with fallback
@@ -28,6 +30,7 @@ export class MisterXNetworkService {
     this.disconnect();
     this.roomCode = roomCode.toUpperCase().trim();
     this.currentPlayer = player;
+    this.tacticsEnabled = false;
 
     return new Promise((resolve, reject) => {
       this.tryConnectBroker(this.currentBrokerIndex, resolve, reject);
@@ -40,6 +43,25 @@ export class MisterXNetworkService {
 
   public isConnected(): boolean {
     return !!(this.client && this.client.connected);
+  }
+
+  public setTacticsSubscription(enabled: boolean) {
+    this.tacticsEnabled = enabled;
+    if (!this.client || !this.client.connected || !this.roomCode) return;
+    const tacticsTopic = `misterx/game/${this.roomCode}/tactics`;
+    if (enabled) {
+      this.client.subscribe(tacticsTopic, { qos: 0 }, () => {});
+    } else {
+      try {
+        this.client.unsubscribe(tacticsTopic);
+      } catch (e) {}
+    }
+  }
+
+  public publishTactical(msg: TacticalEventMessage) {
+    if (!this.client || !this.client.connected || !this.roomCode || !this.tacticsEnabled) return;
+    const tacticsTopic = `misterx/game/${this.roomCode}/tactics`;
+    this.client.publish(tacticsTopic, JSON.stringify(msg), { qos: 0 });
   }
 
   public reconnect() {
@@ -78,8 +100,12 @@ export class MisterXNetworkService {
           // Subscribe to room topics
           const eventTopic = `misterx/game/${this.roomCode}/events`;
           const posTopic = `misterx/game/${this.roomCode}/pos`;
+          const topics = [eventTopic, posTopic];
+          if (this.tacticsEnabled) {
+            topics.push(`misterx/game/${this.roomCode}/tactics`);
+          }
 
-          this.client?.subscribe([eventTopic, posTopic], { qos: 0 }, (err) => {
+          this.client?.subscribe(topics, { qos: 0 }, (err) => {
             if (err) {
               console.error('Subscription error:', err);
             } else {
@@ -109,6 +135,10 @@ export class MisterXNetworkService {
 
             if (topic.endsWith('/pos')) {
               this.location$.next(data);
+            } else if (topic.endsWith('/tactics')) {
+              if (this.tacticsEnabled) {
+                this.tactics$.next(data as TacticalEventMessage);
+              }
             } else {
               this.event$.next(data as GameEventMessage);
             }
@@ -167,6 +197,7 @@ export class MisterXNetworkService {
   }
 
   public disconnect() {
+    this.tacticsEnabled = false;
     if (this.client) {
       if (this.currentPlayer && this.roomCode && this.client.connected) {
         this.publishEvent({

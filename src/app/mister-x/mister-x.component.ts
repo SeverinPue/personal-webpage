@@ -12,7 +12,18 @@ if (typeof window !== 'undefined') {
   } catch (e) {}
 }
 import { MisterXAudioService } from './mister-x-audio.service';
-import { Player, Role, GameStatus, GameSettings, PingRecord, GameEventMessage } from './mister-x.types';
+import {
+  Player,
+  Role,
+  GameStatus,
+  GameSettings,
+  PingRecord,
+  GameEventMessage,
+  TacticalTool,
+  TacticalAnnotation,
+  TacticalAnnotationType,
+  TacticalEventMessage
+} from './mister-x.types';
 
 @Component({
   selector: 'app-mister-x',
@@ -92,6 +103,22 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   private notificationTimer: any = null;
   public connectionError = '';
   public connecting = false;
+
+  // Detective Tactical Drawing Board (Detective-only!)
+  public tacticalBarOpen = false;
+  public activeTacticalTool: TacticalTool = 'NONE';
+  public tacticalAnnotations: TacticalAnnotation[] = [];
+  private tacticalLayers = new Map<string, L.Layer[]>();
+  private tacticalArrowUpdaters: Array<() => void> = [];
+  private isDrawingTactical = false;
+  private currentStrokePoints: [number, number][] = [];
+  private previewHaloLine: L.Polyline | null = null;
+  private previewCoreLine: L.Polyline | null = null;
+  private zoneStartLatLng: L.LatLng | null = null;
+  private currentZoneRadius = 75;
+  private zoneDragged = false;
+  private previewZoneHalo: L.Circle | null = null;
+  private previewZoneCircle: L.Circle | null = null;
 
   // Leaflet maps & layers
   private gameMap: L.Map | null = null;
@@ -236,6 +263,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.subs.push(
       this.network.event$.subscribe(event => this.handleNetworkEvent(event)),
       this.network.location$.subscribe(loc => this.handleIncomingLocation(loc)),
+      this.network.tactics$.subscribe(tactic => this.handleTacticalEvent(tactic)),
       this.network.connected$.subscribe(connected => {
         if (!connected && this.viewState !== 'JOIN_SCREEN') {
           console.warn('Network disconnected, attempting reconnection...');
@@ -255,6 +283,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.stopGpsTracking();
     this.stopPingTimer();
     this.stopLocationHeartbeat();
+    this.resetTacticalState();
     this.network.disconnect();
     this.subs.forEach(s => s.unsubscribe());
     if (this.gameMap) this.gameMap.remove();
@@ -364,6 +393,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.stopGpsTracking();
     this.stopPingTimer();
     this.stopLocationHeartbeat();
+    this.resetTacticalState();
     this.network.disconnect();
     this.viewState = 'JOIN_SCREEN';
     this.gameStatus = 'LOBBY';
@@ -577,6 +607,21 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       this.network.updatePlayer(this.myPlayer);
     }
 
+    // Reset previous round's tactical drawings & enable detective-only channel strictly for detectives
+    this.resetTacticalState();
+    const isDetective = this.myRole === 'DETECTIVE';
+    this.network.setTacticsSubscription(isDetective);
+    if (isDetective) {
+      setTimeout(() => {
+        this.network.publishTactical({
+          action: 'REQUEST_SYNC',
+          senderId: this.playerId,
+          senderName: this.playerName,
+          timestamp: Date.now()
+        });
+      }, 450);
+    }
+
     this.audio.playStartSound();
     this.audio.playRoleRevealSound(this.myRole === 'MISTER_X');
     this.showRoleRevealModal = true;
@@ -631,10 +676,32 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       this.ngZone.run(() => {
         const b = typeof (map as any).getBearing === 'function' ? (map as any).getBearing() : 0;
         this.mapBearing = Math.round((b % 360 + 360) % 360);
+        this.refreshTacticalArrowheads();
       });
     });
 
+    map.on('zoomend', () => {
+      this.refreshTacticalArrowheads();
+    });
+
+    map.on('click', (e: L.LeafletMouseEvent) => {
+      if (
+        this.myRole === 'DETECTIVE' &&
+        (this.activeTacticalTool === 'SUSPECT' ||
+          this.activeTacticalTool === 'SIGHTING' ||
+          this.activeTacticalTool === 'BLOCK')
+      ) {
+        this.placeTacticalStamp(this.activeTacticalTool, e.latlng.lat, e.latlng.lng);
+        return;
+      }
+
+      if (this.simulationMode && this.activeTacticalTool === 'NONE') {
+        this.simulateMove(e.latlng.lat, e.latlng.lng);
+      }
+    });
+
     this.initTouchRotation();
+    this.initTacticalDrawingEvents();
 
     // Classic street map tiles
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -649,7 +716,8 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       fillColor: '#09090b',
       fillOpacity: 0.07,
       weight: 2.5,
-      dashArray: '8, 6'
+      dashArray: '8, 6',
+      interactive: false
     }).addTo(map);
 
     // Monochrome breadcrumb trail polyline for Mister X's past pings
@@ -657,7 +725,8 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       color: '#09090b',
       weight: 3,
       opacity: 0.85,
-      dashArray: '6, 8'
+      dashArray: '6, 8',
+      interactive: false
     }).addTo(map);
 
     // Clean up stale markers and render all current player markers immediately
@@ -672,11 +741,19 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       this.pings.forEach(p => this.addPingMarkerToMap(p));
     }
 
+    // Restore any existing detective tactical annotations
+    if (this.myRole === 'DETECTIVE' && this.tacticalAnnotations.length > 0) {
+      this.tacticalLayers.clear();
+      this.tacticalArrowUpdaters = [];
+      this.tacticalAnnotations.forEach(a => this.renderTacticalAnnotation(a));
+    }
+
     // Trigger initial render
     setTimeout(() => {
       this.gameMap?.invalidateSize();
       this.centerOnMe();
       this.renderAllPlayerMarkers();
+      this.refreshTacticalArrowheads();
     }, 300);
   }
 
@@ -1023,6 +1100,8 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showCatchModal = false;
     this.catchModalDismissed = false;
     this.stopLocationHeartbeat();
+    this.resetTacticalState();
+    this.network.setTacticsSubscription(false);
 
     // Clear map markers
     this.pingMarkers.forEach(m => m.remove());
@@ -1184,6 +1263,8 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
         this.lastPing = null;
         this.stopPingTimer();
         this.stopLocationHeartbeat();
+        this.resetTacticalState();
+        this.network.setTacticsSubscription(false);
         this.showToast('Host hat das Spiel beendet / neue Runde gestartet.');
         setTimeout(() => this.initLobbyMap(), 200);
         break;
@@ -1337,19 +1418,667 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  // --- DETECTIVE TACTICAL DRAWING ENGINE (MOBILE-FIRST, DETECTIVE-ONLY) ---
+
+  public toggleTacticalBar() {
+    if (this.myRole !== 'DETECTIVE') return;
+    this.tacticalBarOpen = !this.tacticalBarOpen;
+    if (this.tacticalBarOpen) {
+      this.closeAllDrawers();
+      if (this.activeTacticalTool === 'NONE') {
+        this.selectTacticalTool('LINE');
+      }
+    } else {
+      this.selectTacticalTool('NONE');
+    }
+  }
+
+  public closeTacticalBar() {
+    this.tacticalBarOpen = false;
+    this.selectTacticalTool('NONE');
+  }
+
+  public selectTacticalTool(tool: TacticalTool) {
+    if (this.myRole !== 'DETECTIVE' && tool !== 'NONE') return;
+    // Tapping an already-active tool toggles back to free map pan ('NONE')
+    this.activeTacticalTool = (this.activeTacticalTool === tool && tool !== 'NONE') ? 'NONE' : tool;
+    this.cancelActiveStroke();
+
+    if (this.gameMap) {
+      if (this.activeTacticalTool === 'LINE' || this.activeTacticalTool === 'ZONE') {
+        this.gameMap.dragging.disable();
+      } else {
+        this.gameMap.dragging.enable();
+      }
+    }
+  }
+
+  public getTacticalHint(): string {
+    switch (this.activeTacticalTool) {
+      case 'LINE':
+        return 'Finger ziehen: Fluchtroute zeichnen';
+      case 'ZONE':
+        return 'Tippen (75m) oder ziehen: Suchkreis';
+      case 'SUSPECT':
+        return 'Karte antippen: Verdacht (?) setzen';
+      case 'SIGHTING':
+        return 'Karte antippen: Sichtung (!) melden';
+      case 'BLOCK':
+        return 'Karte antippen: Weg gesperrt (X)';
+      default:
+        return 'Karte frei verschieben & zoomen';
+    }
+  }
+
+  public hasOwnTacticalItems(): boolean {
+    return this.tacticalAnnotations.some(a => a.authorId === this.playerId);
+  }
+
+  private resetTacticalState() {
+    this.tacticalBarOpen = false;
+    this.activeTacticalTool = 'NONE';
+    this.cancelActiveStroke();
+    this.tacticalLayers.forEach(layers => layers.forEach(l => l.remove()));
+    this.tacticalLayers.clear();
+    this.tacticalArrowUpdaters = [];
+    this.tacticalAnnotations = [];
+    if (this.gameMap) {
+      try {
+        this.gameMap.dragging.enable();
+      } catch (e) {}
+    }
+  }
+
+  private cancelActiveStroke() {
+    this.isDrawingTactical = false;
+    this.currentStrokePoints = [];
+    this.zoneStartLatLng = null;
+    this.zoneDragged = false;
+    if (this.previewHaloLine) {
+      this.previewHaloLine.remove();
+      this.previewHaloLine = null;
+    }
+    if (this.previewCoreLine) {
+      this.previewCoreLine.remove();
+      this.previewCoreLine = null;
+    }
+    if (this.previewZoneHalo) {
+      this.previewZoneHalo.remove();
+      this.previewZoneHalo = null;
+    }
+    if (this.previewZoneCircle) {
+      this.previewZoneCircle.remove();
+      this.previewZoneCircle = null;
+    }
+  }
+
+  private screenPointToLatLng(clientX: number, clientY: number): L.LatLng | null {
+    if (!this.gameMap || !this.mapContainer?.nativeElement) return null;
+    const el: HTMLElement = this.mapContainer.nativeElement;
+    let ux = clientX;
+    let uy = clientY;
+
+    // If CSS fallback rotation is active on mapContainer, un-rotate touch point around element center
+    if (el.style.transform && el.style.transform.includes('rotate(') && this.mapBearing !== 0) {
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const rad = (-this.mapBearing * Math.PI) / 180;
+      const dx = clientX - cx;
+      const dy = clientY - cy;
+      ux = cx + dx * Math.cos(rad) - dy * Math.sin(rad);
+      uy = cy + dx * Math.sin(rad) + dy * Math.cos(rad);
+    }
+
+    try {
+      return this.gameMap.mouseEventToLatLng({ clientX: ux, clientY: uy } as MouseEvent);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  private isPopupOrControlTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) return false;
+    return !!(target.closest('.leaflet-popup') || target.closest('.leaflet-control'));
+  }
+
+  private initTacticalDrawingEvents() {
+    if (!this.mapContainer?.nativeElement) return;
+    const el: HTMLElement = this.mapContainer.nativeElement;
+
+    const startStroke = (clientX: number, clientY: number) => {
+      if (this.myRole !== 'DETECTIVE' || !this.gameMap) return;
+      if (this.activeTacticalTool !== 'LINE' && this.activeTacticalTool !== 'ZONE') return;
+
+      const latlng = this.screenPointToLatLng(clientX, clientY);
+      if (!latlng) return;
+
+      this.cancelActiveStroke();
+      this.isDrawingTactical = true;
+
+      if (this.activeTacticalTool === 'LINE') {
+        const pt: [number, number] = [Number(latlng.lat.toFixed(6)), Number(latlng.lng.toFixed(6))];
+        this.currentStrokePoints = [pt];
+        this.previewHaloLine = L.polyline([pt], {
+          color: '#ffffff',
+          weight: 7,
+          opacity: 0.92,
+          lineCap: 'round',
+          lineJoin: 'round',
+          interactive: false
+        }).addTo(this.gameMap);
+        this.previewCoreLine = L.polyline([pt], {
+          color: '#09090b',
+          weight: 3.5,
+          opacity: 1,
+          dashArray: '8, 6',
+          lineCap: 'round',
+          lineJoin: 'round',
+          interactive: false
+        }).addTo(this.gameMap);
+      } else if (this.activeTacticalTool === 'ZONE') {
+        this.zoneStartLatLng = latlng;
+        this.currentZoneRadius = 75;
+        this.zoneDragged = false;
+        this.previewZoneHalo = L.circle(latlng, {
+          radius: 75,
+          color: '#ffffff',
+          weight: 5.5,
+          opacity: 0.88,
+          fill: false,
+          interactive: false
+        }).addTo(this.gameMap);
+        this.previewZoneCircle = L.circle(latlng, {
+          radius: 75,
+          color: '#09090b',
+          weight: 2.5,
+          dashArray: '7, 6',
+          fillColor: '#09090b',
+          fillOpacity: 0.14,
+          interactive: false
+        }).addTo(this.gameMap);
+      }
+    };
+
+    const moveStroke = (clientX: number, clientY: number) => {
+      if (!this.isDrawingTactical || !this.gameMap) return;
+      const latlng = this.screenPointToLatLng(clientX, clientY);
+      if (!latlng) return;
+
+      if (this.activeTacticalTool === 'LINE' && this.currentStrokePoints.length > 0) {
+        const last = this.currentStrokePoints[this.currentStrokePoints.length - 1];
+        const dist = this.calculateDistance(last[0], last[1], latlng.lat, latlng.lng);
+        if (dist >= 4 && this.currentStrokePoints.length < 90) {
+          this.currentStrokePoints.push([Number(latlng.lat.toFixed(6)), Number(latlng.lng.toFixed(6))]);
+          this.previewHaloLine?.setLatLngs(this.currentStrokePoints);
+          this.previewCoreLine?.setLatLngs(this.currentStrokePoints);
+        }
+      } else if (this.activeTacticalTool === 'ZONE' && this.zoneStartLatLng) {
+        const rawDist = this.calculateDistance(
+          this.zoneStartLatLng.lat,
+          this.zoneStartLatLng.lng,
+          latlng.lat,
+          latlng.lng
+        );
+        if (rawDist > 14) {
+          this.zoneDragged = true;
+        }
+        const clamped = Math.min(400, Math.max(25, Math.round(rawDist)));
+        this.currentZoneRadius = this.zoneDragged ? clamped : 75;
+        this.previewZoneHalo?.setRadius(this.currentZoneRadius);
+        this.previewZoneCircle?.setRadius(this.currentZoneRadius);
+      }
+    };
+
+    const finishStroke = () => {
+      if (!this.isDrawingTactical) return;
+      this.ngZone.run(() => {
+        if (this.activeTacticalTool === 'LINE') {
+          const pts = [...this.currentStrokePoints];
+          this.cancelActiveStroke();
+          if (pts.length >= 2) {
+            const ann: TacticalAnnotation = {
+              id: 't_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
+              type: 'LINE',
+              authorId: this.playerId,
+              authorName: this.playerName,
+              timestamp: Date.now(),
+              points: pts
+            };
+            this.addAndBroadcastTactical(ann);
+          } else {
+            this.showToast('Finger über die Karte ziehen, um eine Linie zu zeichnen');
+          }
+        } else if (this.activeTacticalTool === 'ZONE' && this.zoneStartLatLng) {
+          const center = this.zoneStartLatLng;
+          const radius = this.zoneDragged ? this.currentZoneRadius : 75;
+          this.cancelActiveStroke();
+          const ann: TacticalAnnotation = {
+            id: 't_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
+            type: 'ZONE',
+            authorId: this.playerId,
+            authorName: this.playerName,
+            timestamp: Date.now(),
+            lat: Number(center.lat.toFixed(6)),
+            lng: Number(center.lng.toFixed(6)),
+            radiusMeters: radius
+          };
+          this.addAndBroadcastTactical(ann);
+        } else {
+          this.cancelActiveStroke();
+        }
+      });
+    };
+
+    // Mobile Touch Listeners
+    el.addEventListener(
+      'touchstart',
+      (e: TouchEvent) => {
+        if (this.isPopupOrControlTarget(e.target)) return;
+        if (e.touches.length >= 2) {
+          this.cancelActiveStroke();
+          return;
+        }
+        if (
+          e.touches.length === 1 &&
+          this.myRole === 'DETECTIVE' &&
+          (this.activeTacticalTool === 'LINE' || this.activeTacticalTool === 'ZONE')
+        ) {
+          startStroke(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      },
+      { passive: true }
+    );
+
+    el.addEventListener(
+      'touchmove',
+      (e: TouchEvent) => {
+        if (e.touches.length >= 2) {
+          this.cancelActiveStroke();
+          return;
+        }
+        if (this.isDrawingTactical && e.touches.length === 1) {
+          if (e.cancelable) {
+            e.preventDefault();
+          }
+          moveStroke(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      },
+      { passive: false }
+    );
+
+    el.addEventListener('touchend', () => {
+      if (this.isDrawingTactical) {
+        finishStroke();
+      }
+    });
+
+    el.addEventListener('touchcancel', () => {
+      this.cancelActiveStroke();
+    });
+
+    // Desktop Mouse Listeners (for PC / responsive testing)
+    el.addEventListener('mousedown', (e: MouseEvent) => {
+      if (e.button !== 0 || this.isPopupOrControlTarget(e.target)) return;
+      if (
+        this.myRole === 'DETECTIVE' &&
+        (this.activeTacticalTool === 'LINE' || this.activeTacticalTool === 'ZONE')
+      ) {
+        startStroke(e.clientX, e.clientY);
+      }
+    });
+
+    el.addEventListener('mousemove', (e: MouseEvent) => {
+      if (this.isDrawingTactical) {
+        moveStroke(e.clientX, e.clientY);
+      }
+    });
+
+    el.addEventListener('mouseup', () => {
+      if (this.isDrawingTactical) {
+        finishStroke();
+      }
+    });
+  }
+
+  private placeTacticalStamp(type: 'SUSPECT' | 'SIGHTING' | 'BLOCK', lat: number, lng: number) {
+    if (this.myRole !== 'DETECTIVE') return;
+    const ann: TacticalAnnotation = {
+      id: 't_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
+      type,
+      authorId: this.playerId,
+      authorName: this.playerName,
+      timestamp: Date.now(),
+      lat: Number(lat.toFixed(6)),
+      lng: Number(lng.toFixed(6))
+    };
+    this.addAndBroadcastTactical(ann);
+  }
+
+  private addAndBroadcastTactical(ann: TacticalAnnotation) {
+    if (this.myRole !== 'DETECTIVE') return;
+    if ('vibrate' in navigator) {
+      navigator.vibrate(30);
+    }
+    this.applyTacticalAdd(ann);
+    this.network.publishTactical({
+      action: 'ADD',
+      senderId: this.playerId,
+      senderName: this.playerName,
+      timestamp: Date.now(),
+      annotation: ann
+    });
+  }
+
+  public undoMyLastTactical() {
+    if (this.myRole !== 'DETECTIVE') return;
+    for (let i = this.tacticalAnnotations.length - 1; i >= 0; i--) {
+      if (this.tacticalAnnotations[i].authorId === this.playerId) {
+        this.removeTacticalAnnotation(this.tacticalAnnotations[i].id, true);
+        this.showToast('Letzte Einzeichnung rückgängig gemacht');
+        return;
+      }
+    }
+  }
+
+  public removeTacticalAnnotation(id: string, broadcast = true) {
+    const layers = this.tacticalLayers.get(id);
+    if (layers) {
+      layers.forEach(l => l.remove());
+      this.tacticalLayers.delete(id);
+    }
+    this.tacticalAnnotations = this.tacticalAnnotations.filter(a => a.id !== id);
+    if (broadcast && this.myRole === 'DETECTIVE') {
+      this.network.publishTactical({
+        action: 'REMOVE',
+        senderId: this.playerId,
+        senderName: this.playerName,
+        timestamp: Date.now(),
+        annotationId: id
+      });
+    }
+  }
+
+  public clearAllTactical(broadcast = true) {
+    if (this.tacticalAnnotations.length === 0) return;
+    this.tacticalLayers.forEach(layers => layers.forEach(l => l.remove()));
+    this.tacticalLayers.clear();
+    this.tacticalArrowUpdaters = [];
+    this.tacticalAnnotations = [];
+    if (broadcast && this.myRole === 'DETECTIVE') {
+      this.network.publishTactical({
+        action: 'CLEAR_ALL',
+        senderId: this.playerId,
+        senderName: this.playerName,
+        timestamp: Date.now()
+      });
+      this.showToast('Alle Taktik-Einzeichnungen gelöscht');
+    }
+  }
+
+  private handleTacticalEvent(msg: TacticalEventMessage) {
+    // Strict role guard: Mister X never processes or renders Detective tactical drawings
+    if (this.myRole !== 'DETECTIVE' || this.viewState !== 'GAME') return;
+
+    switch (msg.action) {
+      case 'ADD': {
+        if (msg.annotation && msg.senderId !== this.playerId) {
+          const added = this.applyTacticalAdd(msg.annotation);
+          if (added) {
+            const labelMap: Record<TacticalAnnotationType, string> = {
+              LINE: 'Fluchtroute eingezeichnet',
+              ZONE: 'Suchgebiet markiert',
+              SUSPECT: 'Verdacht (?) markiert',
+              SIGHTING: 'SICHTUNG (!) gemeldet',
+              BLOCK: 'Sperrpunkt gesetzt'
+            };
+            this.showToast(`${msg.senderName}: ${labelMap[msg.annotation.type]}`);
+          }
+        }
+        break;
+      }
+      case 'REMOVE': {
+        if (msg.annotationId && msg.senderId !== this.playerId) {
+          this.removeTacticalAnnotation(msg.annotationId, false);
+        }
+        break;
+      }
+      case 'CLEAR_ALL': {
+        if (msg.senderId !== this.playerId) {
+          this.clearAllTactical(false);
+          this.showToast(`${msg.senderName} hat die Taktik-Karte geleert`);
+        }
+        break;
+      }
+      case 'REQUEST_SYNC': {
+        if (msg.senderId !== this.playerId && this.tacticalAnnotations.length > 0) {
+          this.network.publishTactical({
+            action: 'SYNC',
+            senderId: this.playerId,
+            senderName: this.playerName,
+            timestamp: Date.now(),
+            annotations: this.tacticalAnnotations
+          });
+        }
+        break;
+      }
+      case 'SYNC': {
+        if (msg.annotations && msg.senderId !== this.playerId) {
+          msg.annotations.forEach(a => this.applyTacticalAdd(a));
+        }
+        break;
+      }
+    }
+  }
+
+  private applyTacticalAdd(ann: TacticalAnnotation): boolean {
+    if (this.tacticalAnnotations.some(a => a.id === ann.id)) return false;
+    // Cap total annotations at 60 so map stays fast on mobile
+    if (this.tacticalAnnotations.length >= 60) {
+      const oldest = this.tacticalAnnotations[0];
+      this.removeTacticalAnnotation(oldest.id, false);
+    }
+    this.tacticalAnnotations.push(ann);
+    this.renderTacticalAnnotation(ann);
+    return true;
+  }
+
+  private buildTacticalPopup(ann: TacticalAnnotation, title: string): HTMLElement {
+    const container = document.createElement('div');
+    container.className = 'mx-tactic-popup';
+    const timeStr = new Date(ann.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    container.innerHTML = `
+      <div class="mx-tactic-popup-title">${this.escapeHtml(title)}</div>
+      <div class="mx-tactic-popup-meta">Von ${this.escapeHtml(ann.authorName)} • ${timeStr}</div>
+      <button type="button" class="mx-tactic-popup-del">Eintrag löschen</button>
+    `;
+    const btn = container.querySelector('.mx-tactic-popup-del');
+    if (btn) {
+      L.DomEvent.on(btn as HTMLElement, 'click', (ev: Event) => {
+        L.DomEvent.stopPropagation(ev);
+        this.ngZone.run(() => {
+          this.gameMap?.closePopup();
+          this.removeTacticalAnnotation(ann.id, true);
+        });
+      });
+    }
+    return container;
+  }
+
+  private renderTacticalAnnotation(ann: TacticalAnnotation) {
+    if (!this.gameMap || this.myRole !== 'DETECTIVE') return;
+
+    const layers: L.Layer[] = [];
+    const safeAuthor = this.escapeHtml(ann.authorName);
+
+    if (ann.type === 'LINE' && ann.points && ann.points.length >= 2) {
+      const halo = L.polyline(ann.points, {
+        color: '#ffffff',
+        weight: 7,
+        opacity: 0.92,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(this.gameMap);
+
+      const core = L.polyline(ann.points, {
+        color: '#09090b',
+        weight: 3.5,
+        opacity: 1,
+        dashArray: '8, 6',
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(this.gameMap);
+
+      const popupEl = this.buildTacticalPopup(ann, 'Fluchtroute / Linie');
+      halo.bindPopup(popupEl);
+      core.bindPopup(popupEl);
+
+      // Start anchor dot
+      const startPt = ann.points[0];
+      const startIcon = L.divIcon({
+        className: 'mx-tactic-div-icon',
+        html: `<div class="tactic-line-start"></div>`,
+        iconSize: [12, 12],
+        iconAnchor: [6, 6]
+      });
+      const startMarker = L.marker(startPt, { icon: startIcon, interactive: false }).addTo(this.gameMap);
+
+      // Directional arrowhead at endpoint
+      const endPt = ann.points[ann.points.length - 1];
+      const prevPt = ann.points[ann.points.length - 2];
+      const arrowMarker = L.marker(endPt, {
+        icon: this.createArrowIcon(prevPt, endPt),
+        zIndexOffset: 420
+      }).addTo(this.gameMap);
+      arrowMarker.bindPopup(popupEl);
+
+      const updateArrow = () => {
+        if (!this.gameMap || !this.tacticalLayers.has(ann.id)) return;
+        arrowMarker.setIcon(this.createArrowIcon(prevPt, endPt));
+      };
+      this.tacticalArrowUpdaters.push(updateArrow);
+
+      layers.push(halo, core, startMarker, arrowMarker);
+    } else if (ann.type === 'ZONE' && ann.lat !== undefined && ann.lng !== undefined) {
+      const radius = ann.radiusMeters || 75;
+      const center: L.LatLngTuple = [ann.lat, ann.lng];
+
+      const haloCircle = L.circle(center, {
+        radius,
+        color: '#ffffff',
+        weight: 5.5,
+        opacity: 0.85,
+        fill: false,
+        interactive: false
+      }).addTo(this.gameMap);
+
+      const zoneCircle = L.circle(center, {
+        radius,
+        color: '#09090b',
+        weight: 2.5,
+        dashArray: '7, 6',
+        fillColor: '#09090b',
+        fillOpacity: 0.12
+      }).addTo(this.gameMap);
+
+      const popupEl = this.buildTacticalPopup(ann, `Suchgebiet (${radius}m)`);
+      zoneCircle.bindPopup(popupEl);
+
+      const labelIcon = L.divIcon({
+        className: 'mx-tactic-div-icon',
+        html: `<div class="tactic-zone-tag">? ${radius}m • ${safeAuthor}</div>`,
+        iconSize: [120, 24],
+        iconAnchor: [60, 12]
+      });
+      const labelMarker = L.marker(center, { icon: labelIcon, zIndexOffset: 410 }).addTo(this.gameMap);
+      labelMarker.bindPopup(popupEl);
+
+      layers.push(haloCircle, zoneCircle, labelMarker);
+    } else if (ann.lat !== undefined && ann.lng !== undefined) {
+      const center: L.LatLngTuple = [ann.lat, ann.lng];
+      let svg = '';
+      let tagText = '';
+      let popupTitle = '';
+      let variantClass = '';
+
+      if (ann.type === 'SUSPECT') {
+        variantClass = 'is-suspect';
+        tagText = `Verdacht • ${safeAuthor}`;
+        popupTitle = 'Verdacht (?)';
+        svg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.6-2.5 2-2.5 3.8"/><circle cx="12" cy="16.8" r="0.6" fill="currentColor"/></svg>`;
+      } else if (ann.type === 'SIGHTING') {
+        variantClass = 'is-sighting';
+        tagText = `Sichtung! • ${safeAuthor}`;
+        popupTitle = 'Sichtung (!)';
+        svg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="3"/></svg>`;
+      } else {
+        variantClass = 'is-block';
+        tagText = `Sperre • ${safeAuthor}`;
+        popupTitle = 'Weg gesperrt / Abgedeckt';
+        svg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="8.5" y1="8.5" x2="15.5" y2="15.5"/><line x1="15.5" y1="8.5" x2="8.5" y2="15.5"/></svg>`;
+      }
+
+      const pinHtml = `
+        <div class="tactic-stamp-marker ${variantClass}">
+          ${ann.type === 'SIGHTING' ? '<div class="tactic-pulse-ring"></div>' : ''}
+          <div class="tactic-stamp-badge">${svg}</div>
+          <div class="tactic-stamp-label">${tagText}</div>
+        </div>
+      `;
+
+      const icon = L.divIcon({
+        className: 'mx-tactic-div-icon',
+        html: pinHtml,
+        iconSize: [84, 54],
+        iconAnchor: [42, 26]
+      });
+
+      const marker = L.marker(center, { icon, zIndexOffset: 450 }).addTo(this.gameMap);
+      marker.bindPopup(this.buildTacticalPopup(ann, popupTitle));
+      layers.push(marker);
+    }
+
+    if (layers.length > 0) {
+      this.tacticalLayers.set(ann.id, layers);
+    }
+  }
+
+  private createArrowIcon(prevPt: [number, number], endPt: [number, number]): L.DivIcon {
+    let angleDeg = 0;
+    if (this.gameMap) {
+      try {
+        const p1 = this.gameMap.latLngToContainerPoint(prevPt);
+        const p2 = this.gameMap.latLngToContainerPoint(endPt);
+        angleDeg = Math.round((Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180) / Math.PI + 90);
+      } catch (e) {}
+    }
+    return L.divIcon({
+      className: 'mx-tactic-div-icon',
+      html: `
+        <div class="tactic-arrow-head" style="transform: rotate(${angleDeg}deg)">
+          <svg viewBox="0 0 24 24" width="22" height="22">
+            <path d="M12 3 L20 19 L12 15 L4 19 Z" fill="#09090b" stroke="#ffffff" stroke-width="2.4" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      `,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+  }
+
+  private refreshTacticalArrowheads() {
+    this.tacticalArrowUpdaters.forEach(fn => fn());
+  }
+
   // --- SIMULATOR / TEST-MODUS CONTROLS ---
 
   public toggleSimulationMode() {
     this.simulationMode = !this.simulationMode;
     if (this.simulationMode) {
-      this.showToast('Test-Modus aktiv — Klicke auf die Karte zum Bewegen');
-      if (this.gameMap) {
-        this.gameMap.on('click', (e: L.LeafletMouseEvent) => {
-          if (this.simulationMode) {
-            this.simulateMove(e.latlng.lat, e.latlng.lng);
-          }
-        });
+      if (this.activeTacticalTool !== 'NONE') {
+        this.selectTacticalTool('NONE');
       }
+      this.showToast('Test-Modus aktiv — Klicke auf die Karte zum Bewegen');
     } else {
       this.showToast('Test-Modus beendet — Echtes GPS aktiv');
     }
@@ -1434,6 +2163,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showPingHistory = !this.showPingHistory;
     if (this.showPingHistory) {
       this.showPlayerListDrawer = false;
+      this.closeTacticalBar();
     }
   }
 
@@ -1441,6 +2171,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showPlayerListDrawer = !this.showPlayerListDrawer;
     if (this.showPlayerListDrawer) {
       this.showPingHistory = false;
+      this.closeTacticalBar();
     }
   }
 
@@ -1477,6 +2208,8 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       this.mapContainer.nativeElement.style.transform = `rotate(${this.mapBearing}deg)`;
       this.mapContainer.nativeElement.style.transformOrigin = 'center center';
     }
+
+    this.refreshTacticalArrowheads();
 
     if (notify) {
       if (this.mapBearing === 0) {
@@ -1576,13 +2309,22 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
         this.network.reconnect();
       }
 
-      if (!this.isHost && this.roomCode) {
+      if (!this.isHost && this.roomCode && this.viewState !== 'GAME') {
         this.network.publishEvent({
           type: 'REQUEST_SYNC',
           senderId: this.playerId,
           senderName: this.playerName,
           timestamp: Date.now(),
           payload: {}
+        });
+      }
+
+      if (this.viewState === 'GAME' && this.myRole === 'DETECTIVE' && this.roomCode) {
+        this.network.publishTactical({
+          action: 'REQUEST_SYNC',
+          senderId: this.playerId,
+          senderName: this.playerName,
+          timestamp: Date.now()
         });
       }
     }

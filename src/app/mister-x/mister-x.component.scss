@@ -2211,4 +2211,363 @@
       }
     }
   }
+
+  /* ========================================================================
+     DETECTIVE TACTICAL ANNOTATIONS ON MAP (HIGH-CONTRAST MONOCHROME)
+     ======================================================================== */
+  .mx-tactic-div-icon {
+    background: transparent !important;
+    border: none !important;
+  }
+
+  .tactic-line-start {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #09090b;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 1.5px #09090b;
+    box-sizing: border-box;
+  }
+
+  .tactic-arrow-head {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.55));
+  }
+
+  .tactic-zone-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(9, 9, 11, 0.92);
+    color: #ffffff;
+    border: 1.5px solid #ffffff;
+    box-shadow: 0 0 0 1.5px #09090b, 0 3px 10px rgba(0, 0, 0, 0.5);
+    border-radius: 9999px;
+    padding: 2px 9px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    margin: 0 auto;
+    width: max-content;
+  }
+
+  .tactic-stamp-marker {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    .tactic-stamp-badge {
+      position: relative;
+      z-index: 2;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #ffffff;
+      color: #09090b;
+      border: 2.5px solid #09090b;
+      box-shadow: 0 0 0 2px #ffffff, 0 4px 12px rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+
+      svg {
+        width: 17px;
+        height: 17px;
+      }
+    }
+
+    .tactic-stamp-label {
+      position: relative;
+      z-index: 2;
+      margin-top: 3px;
+      background: rgba(9, 9, 11, 0.94);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      border-radius: 4px;
+      padding: 1.5px 6px;
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Sighting (!): Inverted Solid Black Emblem + Expanding Radar Ring */
+    &.is-sighting {
+      .tactic-stamp-badge {
+        border-radius: 9px;
+        background: #09090b;
+        color: #ffffff;
+        border: 2.5px solid #ffffff;
+        box-shadow: 0 0 0 2.5px #09090b, 0 5px 16px rgba(0, 0, 0, 0.7);
+      }
+
+      .tactic-stamp-label {
+        background: #ffffff;
+        color: #000000;
+        border-color: #000000;
+      }
+    }
+
+    /* Block (X): Crisp Dark Square-Rounded Stop Badge */
+    &.is-block {
+      .tactic-stamp-badge {
+        border-radius: 8px;
+        background: #18181b;
+        color: #ffffff;
+        border: 2px solid #ffffff;
+        box-shadow: 0 0 0 2px #09090b, 0 4px 12px rgba(0, 0, 0, 0.65);
+      }
+    }
+
+    .tactic-pulse-ring {
+      position: absolute;
+      top: -5px;
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      border: 2px solid #09090b;
+      box-shadow: inset 0 0 0 1.5px #ffffff;
+      box-sizing: border-box;
+      animation: tacticSightingPulse 1.9s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+      pointer-events: none;
+    }
+  }
+
+  @keyframes tacticSightingPulse {
+    0% { transform: scale(0.75); opacity: 1; }
+    100% { transform: scale(1.75); opacity: 0; }
+  }
+
+  /* Monochrome Leaflet Popup Styling inside Mister X */
+  .misterx-root .leaflet-popup-content-wrapper {
+    background: #0c0c0f !important;
+    color: #ffffff !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.4) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.85) !important;
+    padding: 0 !important;
+  }
+
+  .misterx-root .leaflet-popup-content {
+    margin: 11px 13px !important;
+    line-height: 1.35 !important;
+  }
+
+  .misterx-root .leaflet-popup-tip {
+    background: #0c0c0f !important;
+    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  }
+
+  .misterx-root .leaflet-popup-close-button {
+    color: #a1a1aa !important;
+    font-size: 16px !important;
+    padding: 4px 6px 0 0 !important;
+
+    &:hover {
+      color: #ffffff !important;
+    }
+  }
+
+  .mx-tactic-popup {
+    min-width: 148px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+
+    .mx-tactic-popup-title {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #ffffff;
+      padding-right: 14px;
+    }
+
+    .mx-tactic-popup-meta {
+      font-size: 0.72rem;
+      color: #a1a1aa;
+      margin-bottom: 5px;
+    }
+
+    .mx-tactic-popup-del {
+      width: 100%;
+      padding: 6px 10px;
+      border-radius: 7px;
+      border: 1px solid #ffffff;
+      background: #ffffff;
+      color: #000000;
+      font-size: 0.73rem;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      transition: opacity 0.15s ease;
+
+      &:active {
+        opacity: 0.8;
+      }
+    }
+  }
 }
+
+/* ==========================================================================
+   MOBILE TACTICAL DRAWING PALETTE (THUMB-FIRST MONOCHROME DOCK)
+   ========================================================================== */
+.game-map-container.is-drawing-mode .leaflet-game-map {
+  cursor: crosshair;
+}
+
+.tactical-palette {
+  background: rgba(9, 9, 11, 0.96);
+  backdrop-filter: blur(16px);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-radius: 16px;
+  padding: 10px 11px 11px;
+  margin-bottom: 8px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  animation: fadeIn 0.16s ease;
+}
+
+.tactical-palette-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tactical-hint-group {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+
+  .tactical-live-tag {
+    flex-shrink: 0;
+    background: #ffffff;
+    color: #000000;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.7px;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .tactical-hint-text {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #e4e4e7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.tactical-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.tactical-mini-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #18181b;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.14s ease;
+
+  &:hover:not([disabled]),
+  &:active:not([disabled]) {
+    background: #ffffff;
+    color: #000000;
+    border-color: #ffffff;
+  }
+
+  &[disabled] {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+}
+
+.tactical-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+
+  @media (max-width: 359px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.tactic-tool-btn {
+  min-height: 52px;
+  padding: 6px 3px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #151519;
+  color: #d4d4d8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.14s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+
+  span {
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    line-height: 1;
+  }
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.42);
+    color: #ffffff;
+  }
+
+  &.active {
+    background: #ffffff;
+    color: #000000;
+    border-color: #ffffff;
+    box-shadow: 0 4px 14px rgba(255, 255, 255, 0.22);
+
+    span {
+      color: #000000;
+      font-weight: 800;
+    }
+  }
+}
+
+.sim-toggle-row .sim-btn.tactic-open-btn {
+  border-color: rgba(255, 255, 255, 0.38);
+  color: #ffffff;
+
+  &.active {
+    background: #ffffff;
+    color: #000000;
+    border-color: #ffffff;
+  }
+}
+

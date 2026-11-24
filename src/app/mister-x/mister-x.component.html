@@ -485,6 +485,22 @@
           </svg>
         </button>
 
+        <!-- Detective Tactical Sketch Button (Detective-Only) -->
+        <button
+          class="hud-btn"
+          *ngIf="myRole === 'DETECTIVE'"
+          [class.active]="tacticalBarOpen"
+          (click)="toggleTacticalBar()"
+          title="Taktik-Karte zeichnen (nur für Detektive sichtbar)"
+          aria-label="Taktik-Karte zeichnen"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+          </svg>
+          <span class="hud-badge" *ngIf="tacticalAnnotations.length > 0">{{ tacticalAnnotations.length }}</span>
+        </button>
+
         <!-- Ping Log Drawer -->
         <button class="hud-btn" [class.active]="showPingHistory" (click)="togglePingHistory()" title="Ping-Protokoll" aria-label="Ping-Protokoll">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -508,7 +524,7 @@
     </header>
 
     <!-- MAIN LEAFLET MAP -->
-    <div class="game-map-container">
+    <div class="game-map-container" [class.is-drawing-mode]="myRole === 'DETECTIVE' && activeTacticalTool !== 'NONE'">
       <div #mapContainer class="leaflet-game-map"></div>
     </div>
 
@@ -522,6 +538,150 @@
           <line x1="12" y1="17" x2="12.01" y2="17" />
         </svg>
         <span>AUSSERHALB DER EINSATZZONE — BITTE ZURÜCKKEHREN</span>
+      </div>
+
+      <!-- DETECTIVE TACTICAL DRAWING PALETTE (Thumb-accessible on mobile, hidden from Mister X) -->
+      <div class="tactical-palette" *ngIf="myRole === 'DETECTIVE' && tacticalBarOpen">
+        <div class="tactical-palette-top">
+          <div class="tactical-hint-group">
+            <span class="tactical-live-tag">NUR DETEKTIVE</span>
+            <span class="tactical-hint-text">{{ getTacticalHint() }}</span>
+          </div>
+          <div class="tactical-quick-actions">
+            <button
+              type="button"
+              class="tactical-mini-btn"
+              (click)="undoMyLastTactical()"
+              [disabled]="!hasOwnTacticalItems()"
+              title="Eigene letzte Zeichnung rückgängig"
+              aria-label="Rückgängig"
+            >
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 14 4 9 9 4" />
+                <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="tactical-mini-btn"
+              (click)="clearAllTactical()"
+              [disabled]="tacticalAnnotations.length === 0"
+              title="Alle Einzeichnungen löschen"
+              aria-label="Alle löschen"
+            >
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6" />
+                <path d="M14 11v6" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="tactical-mini-btn close-btn"
+              (click)="closeTacticalBar()"
+              title="Zeichentool schliessen"
+              aria-label="Zeichentool schliessen"
+            >
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="tactical-tools-grid">
+          <!-- 1. Free Map Pan -->
+          <button
+            type="button"
+            class="tactic-tool-btn"
+            [class.active]="activeTacticalTool === 'NONE'"
+            (click)="selectTacticalTool('NONE')"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="5 9 2 12 5 15" />
+              <polyline points="9 5 12 2 15 5" />
+              <polyline points="15 19 12 22 9 19" />
+              <polyline points="19 9 22 12 19 15" />
+              <line x1="2" y1="12" x2="22" y2="12" />
+              <line x1="12" y1="2" x2="12" y2="22" />
+            </svg>
+            <span>Karte</span>
+          </button>
+
+          <!-- 2. Freehand Route / Arrow -->
+          <button
+            type="button"
+            class="tactic-tool-btn"
+            [class.active]="activeTacticalTool === 'LINE'"
+            (click)="selectTacticalTool('LINE')"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19c4-6 7-8 11-5s5-1 5-9" />
+              <polyline points="16 5 20 5 20 9" />
+            </svg>
+            <span>Route</span>
+          </button>
+
+          <!-- 3. Suspect Search Circle -->
+          <button
+            type="button"
+            class="tactic-tool-btn"
+            [class.active]="activeTacticalTool === 'ZONE'"
+            (click)="selectTacticalTool('ZONE')"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9" stroke-dasharray="4 3" />
+              <circle cx="12" cy="12" r="2" fill="currentColor" />
+            </svg>
+            <span>Kreis</span>
+          </button>
+
+          <!-- 4. Suspect Pin (?) -->
+          <button
+            type="button"
+            class="tactic-tool-btn"
+            [class.active]="activeTacticalTool === 'SUSPECT'"
+            (click)="selectTacticalTool('SUSPECT')"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.6-2.5 2-2.5 3.8" />
+              <circle cx="12" cy="17" r="0.6" fill="currentColor" />
+            </svg>
+            <span>Verdacht</span>
+          </button>
+
+          <!-- 5. Sighting Pin (!) -->
+          <button
+            type="button"
+            class="tactic-tool-btn"
+            [class.active]="activeTacticalTool === 'SIGHTING'"
+            (click)="selectTacticalTool('SIGHTING')"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <span>Sichtung</span>
+          </button>
+
+          <!-- 6. Street Block / Covered Pin (X) -->
+          <button
+            type="button"
+            class="tactic-tool-btn"
+            [class.active]="activeTacticalTool === 'BLOCK'"
+            (click)="selectTacticalTool('BLOCK')"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <line x1="8.5" y1="8.5" x2="15.5" y2="15.5" />
+              <line x1="15.5" y1="8.5" x2="8.5" y2="15.5" />
+            </svg>
+            <span>Sperre</span>
+          </button>
+        </div>
       </div>
 
       <div class="bottom-status-card">
@@ -585,6 +745,19 @@
 
         <!-- Compact Tactical Controls / Simulator Bar -->
         <div class="sim-toggle-row">
+          <button
+            class="sim-btn tactic-open-btn"
+            *ngIf="myRole === 'DETECTIVE'"
+            [class.active]="tacticalBarOpen"
+            (click)="toggleTacticalBar()"
+          >
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+            <span>Taktik-Skizze{{ tacticalAnnotations.length > 0 ? ' (' + tacticalAnnotations.length + ')' : '' }}</span>
+          </button>
+
           <button class="sim-btn" [class.active]="simulationMode" (click)="toggleSimulationMode()">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="5 9 2 12 5 15" />

@@ -2,6 +2,32 @@ export type Role = 'MISTER_X' | 'DETECTIVE' | 'UNASSIGNED';
 
 export type GameStatus = 'LOBBY' | 'PLAYING' | 'CAUGHT' | 'ESCAPED' | 'ENDED';
 
+export type TacticalTool = 'NONE' | 'LINE' | 'ZONE' | 'SUSPECT' | 'SIGHTING' | 'BLOCK';
+
+export type TacticalAnnotationType = 'LINE' | 'ZONE' | 'SUSPECT' | 'SIGHTING' | 'BLOCK';
+
+export interface TacticalAnnotation {
+  id: string;
+  type: TacticalAnnotationType;
+  authorId: string;
+  authorName: string;
+  timestamp: number;
+  points?: [number, number][];
+  lat?: number;
+  lng?: number;
+  radiusMeters?: number;
+}
+
+export interface TacticalEventMessage {
+  action: 'ADD' | 'REMOVE' | 'CLEAR_ALL' | 'REQUEST_SYNC' | 'SYNC';
+  senderId: string;
+  senderName: string;
+  timestamp: number;
+  annotation?: TacticalAnnotation;
+  annotationId?: string;
+  annotations?: TacticalAnnotation[];
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -20,7 +46,7 @@ export interface GameSettings {
   centerLng: number;
   radiusMeters: number;
   pingIntervalSeconds: number; // e.g. 180 (3 min)
-  catchRadiusMeters: number; // e.g. 30m
+  catchRadiusMeters: number; // e.g. 10m
   misterXPlayerId?: string; // empty means random
   gameDurationMinutes: number; // 0 = unlimited until caught
 }
