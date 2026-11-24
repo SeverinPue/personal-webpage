@@ -94,6 +94,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // UI state
   public showQrModal = false;
+  public showAbortModal = false;
   public qrCodeDataUrl = '';
   public copySuccess = false;
   public showPingHistory = false;
@@ -114,6 +115,9 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   private currentStrokePoints: [number, number][] = [];
   private previewHaloLine: L.Polyline | null = null;
   private previewCoreLine: L.Polyline | null = null;
+  private previewArrowHead: L.Marker | null = null;
+  private arrowPendingStart: [number, number] | null = null;
+  private arrowPendingMarker: L.Marker | null = null;
   private zoneStartLatLng: L.LatLng | null = null;
   private currentZoneRadius = 75;
   private zoneDragged = false;
@@ -687,7 +691,9 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     map.on('click', (e: L.LeafletMouseEvent) => {
       if (
         this.myRole === 'DETECTIVE' &&
-        (this.activeTacticalTool === 'SUSPECT' ||
+        (this.activeTacticalTool === 'GOING' ||
+          this.activeTacticalTool === 'PING' ||
+          this.activeTacticalTool === 'SUSPECT' ||
           this.activeTacticalTool === 'SIGHTING' ||
           this.activeTacticalTool === 'BLOCK')
       ) {
@@ -1089,8 +1095,43 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showToast(`ZUGRIFF ERFOLGREICH — Mister X gestellt von ${catcherName}`);
   }
 
-  public restartGame() {
+  public openAbortModal() {
     if (!this.isHost) return;
+    this.closeAllDrawers();
+    this.showAbortModal = true;
+  }
+
+  public closeAbortModal() {
+    this.showAbortModal = false;
+  }
+
+  public confirmAbortToLobby() {
+    if (!this.isHost) return;
+    this.showAbortModal = false;
+    this.restartGame(true);
+    this.showToast('Spiel abgebrochen — Alle Spieler zurück in der Lobby.');
+  }
+
+  public abortAndCloseLobby() {
+    if (!this.isHost) return;
+    this.showAbortModal = false;
+    this.network.publishEvent({
+      type: 'END_GAME',
+      senderId: this.playerId,
+      senderName: this.playerName,
+      timestamp: Date.now(),
+      payload: { closeLobby: true }
+    });
+    setTimeout(() => {
+      this.leaveLobby();
+      this.showToast('Spiel & Lobby wurden für alle beendet.');
+    }, 120);
+  }
+
+  public restartGame(aborted = false) {
+    if (!this.isHost) return;
+    this.showAbortModal = false;
+    this.showRoleRevealModal = false;
     this.gameStatus = 'LOBBY';
     this.viewState = 'LOBBY';
     this.pings = [];
@@ -1099,6 +1140,8 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.misterXCaughtBy = '';
     this.showCatchModal = false;
     this.catchModalDismissed = false;
+    this.releaseWakeLock();
+    this.stopPingTimer();
     this.stopLocationHeartbeat();
     this.resetTacticalState();
     this.network.setTacticsSubscription(false);
@@ -1117,7 +1160,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       senderId: this.playerId,
       senderName: this.playerName,
       timestamp: Date.now(),
-      payload: { restartToLobby: true }
+      payload: { restartToLobby: true, aborted }
     });
 
     setTimeout(() => {
@@ -1257,15 +1300,31 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       }
 
       case 'END_GAME': {
+        if (msg.senderId === this.playerId) break;
+
+        if (msg.payload?.closeLobby) {
+          this.leaveLobby();
+          this.showToast('Der Host hat das Spiel und die Lobby beendet.');
+          break;
+        }
+
+        this.showRoleRevealModal = false;
+        this.showCatchModal = false;
+        this.showAbortModal = false;
         this.gameStatus = 'LOBBY';
         this.viewState = 'LOBBY';
         this.pings = [];
         this.lastPing = null;
+        this.releaseWakeLock();
         this.stopPingTimer();
         this.stopLocationHeartbeat();
         this.resetTacticalState();
         this.network.setTacticsSubscription(false);
-        this.showToast('Host hat das Spiel beendet / neue Runde gestartet.');
+        this.showToast(
+          msg.payload?.aborted
+            ? 'Der Host hat das laufende Spiel abgebrochen.'
+            : 'Host hat die Runde beendet — Zurück in der Lobby.'
+        );
         setTimeout(() => this.initLobbyMap(), 200);
         break;
       }
@@ -1418,7 +1477,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  // --- DETECTIVE TACTICAL DRAWING ENGINE (MOBILE-FIRST, DETECTIVE-ONLY) ---
+  // --- DETECTIVE TACTICAL DRAWING ENGINE (MOBILE-FIRST, TACTICAL RED, DETECTIVE-ONLY) ---
 
   public toggleTacticalBar() {
     if (this.myRole !== 'DETECTIVE') return;
@@ -1426,7 +1485,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.tacticalBarOpen) {
       this.closeAllDrawers();
       if (this.activeTacticalTool === 'NONE') {
-        this.selectTacticalTool('LINE');
+        this.selectTacticalTool('ARROW');
       }
     } else {
       this.selectTacticalTool('NONE');
@@ -1443,28 +1502,48 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     // Tapping an already-active tool toggles back to free map pan ('NONE')
     this.activeTacticalTool = (this.activeTacticalTool === tool && tool !== 'NONE') ? 'NONE' : tool;
     this.cancelActiveStroke();
+    this.clearPendingArrowStart();
 
     if (this.gameMap) {
-      if (this.activeTacticalTool === 'LINE' || this.activeTacticalTool === 'ZONE') {
+      if (
+        this.activeTacticalTool === 'ARROW' ||
+        this.activeTacticalTool === 'LINE' ||
+        this.activeTacticalTool === 'ZONE'
+      ) {
         this.gameMap.dragging.disable();
       } else {
         this.gameMap.dragging.enable();
+      }
+
+      // Disable doubleClickZoom while placing pings/arrows so rapid multi-tapping never zooms accidentally
+      if (this.activeTacticalTool !== 'NONE') {
+        this.gameMap.doubleClickZoom.disable();
+      } else {
+        this.gameMap.doubleClickZoom.enable();
       }
     }
   }
 
   public getTacticalHint(): string {
     switch (this.activeTacticalTool) {
+      case 'GOING':
+        return 'Tippen: „Dort gehe ich hin“ markieren (mehrfach möglich)';
+      case 'PING':
+        return 'Tippen: Rote Team-Pings schnell setzen (mehrfach)';
+      case 'ARROW':
+        return this.arrowPendingStart
+          ? 'Jetzt Zielpunkt antippen für roten Pfeil'
+          : 'Ziehen oder Start + Ziel antippen: Roter Pfeil';
       case 'LINE':
-        return 'Finger ziehen: Fluchtroute zeichnen';
+        return 'Finger ziehen: Rote Fluchtroute zeichnen';
       case 'ZONE':
-        return 'Tippen (75m) oder ziehen: Suchkreis';
-      case 'SUSPECT':
-        return 'Karte antippen: Verdacht (?) setzen';
+        return 'Tippen (75m) oder ziehen: Roter Suchkreis';
       case 'SIGHTING':
-        return 'Karte antippen: Sichtung (!) melden';
+        return 'Tippen: Rote Sichtung (!) melden';
+      case 'SUSPECT':
+        return 'Tippen: Roten Verdacht (?) setzen';
       case 'BLOCK':
-        return 'Karte antippen: Weg gesperrt (X)';
+        return 'Tippen: Weg gesperrt / abgedeckt (X)';
       default:
         return 'Karte frei verschieben & zoomen';
     }
@@ -1474,10 +1553,19 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.tacticalAnnotations.some(a => a.authorId === this.playerId);
   }
 
+  private clearPendingArrowStart() {
+    this.arrowPendingStart = null;
+    if (this.arrowPendingMarker) {
+      this.arrowPendingMarker.remove();
+      this.arrowPendingMarker = null;
+    }
+  }
+
   private resetTacticalState() {
     this.tacticalBarOpen = false;
     this.activeTacticalTool = 'NONE';
     this.cancelActiveStroke();
+    this.clearPendingArrowStart();
     this.tacticalLayers.forEach(layers => layers.forEach(l => l.remove()));
     this.tacticalLayers.clear();
     this.tacticalArrowUpdaters = [];
@@ -1485,6 +1573,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.gameMap) {
       try {
         this.gameMap.dragging.enable();
+        this.gameMap.doubleClickZoom.enable();
       } catch (e) {}
     }
   }
@@ -1501,6 +1590,10 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.previewCoreLine) {
       this.previewCoreLine.remove();
       this.previewCoreLine = null;
+    }
+    if (this.previewArrowHead) {
+      this.previewArrowHead.remove();
+      this.previewArrowHead = null;
     }
     if (this.previewZoneHalo) {
       this.previewZoneHalo.remove();
@@ -1546,9 +1639,13 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.mapContainer?.nativeElement) return;
     const el: HTMLElement = this.mapContainer.nativeElement;
 
+    const isDragTool = () =>
+      this.activeTacticalTool === 'ARROW' ||
+      this.activeTacticalTool === 'LINE' ||
+      this.activeTacticalTool === 'ZONE';
+
     const startStroke = (clientX: number, clientY: number) => {
-      if (this.myRole !== 'DETECTIVE' || !this.gameMap) return;
-      if (this.activeTacticalTool !== 'LINE' && this.activeTacticalTool !== 'ZONE') return;
+      if (this.myRole !== 'DETECTIVE' || !this.gameMap || !isDragTool()) return;
 
       const latlng = this.screenPointToLatLng(clientX, clientY);
       if (!latlng) return;
@@ -1556,7 +1653,24 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       this.cancelActiveStroke();
       this.isDrawingTactical = true;
 
-      if (this.activeTacticalTool === 'LINE') {
+      if (this.activeTacticalTool === 'ARROW') {
+        const pt: [number, number] = [Number(latlng.lat.toFixed(6)), Number(latlng.lng.toFixed(6))];
+        this.currentStrokePoints = [pt];
+        this.previewHaloLine = L.polyline([pt], {
+          color: '#ffffff',
+          weight: 7.5,
+          opacity: 0.95,
+          lineCap: 'round',
+          interactive: false
+        }).addTo(this.gameMap);
+        this.previewCoreLine = L.polyline([pt], {
+          color: '#dc2626',
+          weight: 4,
+          opacity: 1,
+          lineCap: 'round',
+          interactive: false
+        }).addTo(this.gameMap);
+      } else if (this.activeTacticalTool === 'LINE') {
         const pt: [number, number] = [Number(latlng.lat.toFixed(6)), Number(latlng.lng.toFixed(6))];
         this.currentStrokePoints = [pt];
         this.previewHaloLine = L.polyline([pt], {
@@ -1568,7 +1682,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
           interactive: false
         }).addTo(this.gameMap);
         this.previewCoreLine = L.polyline([pt], {
-          color: '#09090b',
+          color: '#dc2626',
           weight: 3.5,
           opacity: 1,
           dashArray: '8, 6',
@@ -1584,17 +1698,17 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
           radius: 75,
           color: '#ffffff',
           weight: 5.5,
-          opacity: 0.88,
+          opacity: 0.9,
           fill: false,
           interactive: false
         }).addTo(this.gameMap);
         this.previewZoneCircle = L.circle(latlng, {
           radius: 75,
-          color: '#09090b',
+          color: '#dc2626',
           weight: 2.5,
           dashArray: '7, 6',
-          fillColor: '#09090b',
-          fillOpacity: 0.14,
+          fillColor: '#ef4444',
+          fillOpacity: 0.16,
           interactive: false
         }).addTo(this.gameMap);
       }
@@ -1605,10 +1719,26 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       const latlng = this.screenPointToLatLng(clientX, clientY);
       if (!latlng) return;
 
-      if (this.activeTacticalTool === 'LINE' && this.currentStrokePoints.length > 0) {
+      if (this.activeTacticalTool === 'ARROW' && this.currentStrokePoints.length > 0) {
+        const startPt = this.currentStrokePoints[0];
+        const endPt: [number, number] = [Number(latlng.lat.toFixed(6)), Number(latlng.lng.toFixed(6))];
+        this.currentStrokePoints = [startPt, endPt];
+        this.previewHaloLine?.setLatLngs([startPt, endPt]);
+        this.previewCoreLine?.setLatLngs([startPt, endPt]);
+        const dist = this.calculateDistance(startPt[0], startPt[1], endPt[0], endPt[1]);
+        if (dist >= 6) {
+          const icon = this.createArrowIcon(startPt, endPt);
+          if (!this.previewArrowHead) {
+            this.previewArrowHead = L.marker(endPt, { icon, interactive: false, zIndexOffset: 460 }).addTo(this.gameMap);
+          } else {
+            this.previewArrowHead.setLatLng(endPt);
+            this.previewArrowHead.setIcon(icon);
+          }
+        }
+      } else if (this.activeTacticalTool === 'LINE' && this.currentStrokePoints.length > 0) {
         const last = this.currentStrokePoints[this.currentStrokePoints.length - 1];
         const dist = this.calculateDistance(last[0], last[1], latlng.lat, latlng.lng);
-        if (dist >= 4 && this.currentStrokePoints.length < 90) {
+        if (dist >= 4 && this.currentStrokePoints.length < 110) {
           this.currentStrokePoints.push([Number(latlng.lat.toFixed(6)), Number(latlng.lng.toFixed(6))]);
           this.previewHaloLine?.setLatLngs(this.currentStrokePoints);
           this.previewCoreLine?.setLatLngs(this.currentStrokePoints);
@@ -1633,7 +1763,57 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     const finishStroke = () => {
       if (!this.isDrawingTactical) return;
       this.ngZone.run(() => {
-        if (this.activeTacticalTool === 'LINE') {
+        if (this.activeTacticalTool === 'ARROW') {
+          const pts = [...this.currentStrokePoints];
+          this.cancelActiveStroke();
+          const draggedDist =
+            pts.length >= 2 ? this.calculateDistance(pts[0][0], pts[0][1], pts[1][0], pts[1][1]) : 0;
+
+          if (pts.length >= 2 && draggedDist >= 8) {
+            // Dragged straight arrow
+            this.clearPendingArrowStart();
+            const ann: TacticalAnnotation = {
+              id: 't_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
+              type: 'ARROW',
+              authorId: this.playerId,
+              authorName: this.playerName,
+              timestamp: Date.now(),
+              points: [pts[0], pts[1]]
+            };
+            this.addAndBroadcastTactical(ann);
+          } else if (pts.length >= 1 && this.gameMap) {
+            // 2-Tap mode: 1st tap sets start, 2nd tap completes arrow!
+            const tapPt = pts[pts.length - 1];
+            if (!this.arrowPendingStart) {
+              this.arrowPendingStart = tapPt;
+              const startIcon = L.divIcon({
+                className: 'mx-tactic-div-icon',
+                html: `<div class="tactic-arrow-pending-dot"></div>`,
+                iconSize: [18, 18],
+                iconAnchor: [9, 9]
+              });
+              this.arrowPendingMarker = L.marker(tapPt, {
+                icon: startIcon,
+                interactive: false,
+                zIndexOffset: 470
+              }).addTo(this.gameMap);
+            } else {
+              const startPt = this.arrowPendingStart;
+              this.clearPendingArrowStart();
+              if (this.calculateDistance(startPt[0], startPt[1], tapPt[0], tapPt[1]) >= 4) {
+                const ann: TacticalAnnotation = {
+                  id: 't_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
+                  type: 'ARROW',
+                  authorId: this.playerId,
+                  authorName: this.playerName,
+                  timestamp: Date.now(),
+                  points: [startPt, tapPt]
+                };
+                this.addAndBroadcastTactical(ann);
+              }
+            }
+          }
+        } else if (this.activeTacticalTool === 'LINE') {
           const pts = [...this.currentStrokePoints];
           this.cancelActiveStroke();
           if (pts.length >= 2) {
@@ -1647,7 +1827,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
             };
             this.addAndBroadcastTactical(ann);
           } else {
-            this.showToast('Finger über die Karte ziehen, um eine Linie zu zeichnen');
+            this.showToast('Finger über die Karte ziehen für Freihand-Route');
           }
         } else if (this.activeTacticalTool === 'ZONE' && this.zoneStartLatLng) {
           const center = this.zoneStartLatLng;
@@ -1679,11 +1859,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
           this.cancelActiveStroke();
           return;
         }
-        if (
-          e.touches.length === 1 &&
-          this.myRole === 'DETECTIVE' &&
-          (this.activeTacticalTool === 'LINE' || this.activeTacticalTool === 'ZONE')
-        ) {
+        if (e.touches.length === 1 && this.myRole === 'DETECTIVE' && isDragTool()) {
           startStroke(e.touches[0].clientX, e.touches[0].clientY);
         }
       },
@@ -1720,10 +1896,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     // Desktop Mouse Listeners (for PC / responsive testing)
     el.addEventListener('mousedown', (e: MouseEvent) => {
       if (e.button !== 0 || this.isPopupOrControlTarget(e.target)) return;
-      if (
-        this.myRole === 'DETECTIVE' &&
-        (this.activeTacticalTool === 'LINE' || this.activeTacticalTool === 'ZONE')
-      ) {
+      if (this.myRole === 'DETECTIVE' && isDragTool()) {
         startStroke(e.clientX, e.clientY);
       }
     });
@@ -1741,7 +1914,11 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  private placeTacticalStamp(type: 'SUSPECT' | 'SIGHTING' | 'BLOCK', lat: number, lng: number) {
+  private placeTacticalStamp(
+    type: 'GOING' | 'PING' | 'SUSPECT' | 'SIGHTING' | 'BLOCK',
+    lat: number,
+    lng: number
+  ) {
     if (this.myRole !== 'DETECTIVE') return;
     const ann: TacticalAnnotation = {
       id: 't_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
@@ -1752,13 +1929,20 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       lat: Number(lat.toFixed(6)),
       lng: Number(lng.toFixed(6))
     };
+
+    // For GOING ("Dort gehe ich hin"), attach detective's current GPS position so a red vector arrow points to the target!
+    if (type === 'GOING' && this.currentLat !== null && this.currentLng !== null) {
+      ann.originLat = Number(this.currentLat.toFixed(6));
+      ann.originLng = Number(this.currentLng.toFixed(6));
+    }
+
     this.addAndBroadcastTactical(ann);
   }
 
   private addAndBroadcastTactical(ann: TacticalAnnotation) {
     if (this.myRole !== 'DETECTIVE') return;
     if ('vibrate' in navigator) {
-      navigator.vibrate(30);
+      navigator.vibrate(25);
     }
     this.applyTacticalAdd(ann);
     this.network.publishTactical({
@@ -1801,6 +1985,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
 
   public clearAllTactical(broadcast = true) {
     if (this.tacticalAnnotations.length === 0) return;
+    this.clearPendingArrowStart();
     this.tacticalLayers.forEach(layers => layers.forEach(l => l.remove()));
     this.tacticalLayers.clear();
     this.tacticalArrowUpdaters = [];
@@ -1826,13 +2011,16 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
           const added = this.applyTacticalAdd(msg.annotation);
           if (added) {
             const labelMap: Record<TacticalAnnotationType, string> = {
-              LINE: 'Fluchtroute eingezeichnet',
-              ZONE: 'Suchgebiet markiert',
-              SUSPECT: 'Verdacht (?) markiert',
-              SIGHTING: 'SICHTUNG (!) gemeldet',
-              BLOCK: 'Sperrpunkt gesetzt'
+              GOING: 'geht zu markiertem Ziel!',
+              PING: 'hat einen roten Ping gesetzt',
+              ARROW: 'hat einen Richtungspfeil gesetzt',
+              LINE: 'hat eine Fluchtroute gezeichnet',
+              ZONE: 'hat ein Suchgebiet markiert',
+              SIGHTING: 'meldet SICHTUNG (!)',
+              SUSPECT: 'hat Verdacht (?) markiert',
+              BLOCK: 'hat Weg gesperrt (X)'
             };
-            this.showToast(`${msg.senderName}: ${labelMap[msg.annotation.type]}`);
+            this.showToast(`${msg.senderName} ${labelMap[msg.annotation.type]}`);
           }
         }
         break;
@@ -1873,8 +2061,8 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private applyTacticalAdd(ann: TacticalAnnotation): boolean {
     if (this.tacticalAnnotations.some(a => a.id === ann.id)) return false;
-    // Cap total annotations at 60 so map stays fast on mobile
-    if (this.tacticalAnnotations.length >= 60) {
+    // Allow up to 150 active pings & arrows simultaneously
+    if (this.tacticalAnnotations.length >= 150) {
       const oldest = this.tacticalAnnotations[0];
       this.removeTacticalAnnotation(oldest.id, false);
     }
@@ -1911,29 +2099,30 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     const layers: L.Layer[] = [];
     const safeAuthor = this.escapeHtml(ann.authorName);
 
-    if (ann.type === 'LINE' && ann.points && ann.points.length >= 2) {
+    if ((ann.type === 'LINE' || ann.type === 'ARROW') && ann.points && ann.points.length >= 2) {
+      const isArrow = ann.type === 'ARROW';
       const halo = L.polyline(ann.points, {
         color: '#ffffff',
-        weight: 7,
-        opacity: 0.92,
+        weight: isArrow ? 7.5 : 7,
+        opacity: 0.94,
         lineCap: 'round',
         lineJoin: 'round'
       }).addTo(this.gameMap);
 
       const core = L.polyline(ann.points, {
-        color: '#09090b',
-        weight: 3.5,
+        color: '#dc2626',
+        weight: isArrow ? 4 : 3.5,
         opacity: 1,
-        dashArray: '8, 6',
+        dashArray: isArrow ? undefined : '8, 6',
         lineCap: 'round',
         lineJoin: 'round'
       }).addTo(this.gameMap);
 
-      const popupEl = this.buildTacticalPopup(ann, 'Fluchtroute / Linie');
+      const popupEl = this.buildTacticalPopup(ann, isArrow ? 'Richtungspfeil' : 'Fluchtroute / Linie');
       halo.bindPopup(popupEl);
       core.bindPopup(popupEl);
 
-      // Start anchor dot
+      // Red start anchor dot
       const startPt = ann.points[0];
       const startIcon = L.divIcon({
         className: 'mx-tactic-div-icon',
@@ -1943,12 +2132,12 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       });
       const startMarker = L.marker(startPt, { icon: startIcon, interactive: false }).addTo(this.gameMap);
 
-      // Directional arrowhead at endpoint
+      // Red directional arrowhead at endpoint
       const endPt = ann.points[ann.points.length - 1];
       const prevPt = ann.points[ann.points.length - 2];
       const arrowMarker = L.marker(endPt, {
         icon: this.createArrowIcon(prevPt, endPt),
-        zIndexOffset: 420
+        zIndexOffset: 430
       }).addTo(this.gameMap);
       arrowMarker.bindPopup(popupEl);
 
@@ -1967,18 +2156,18 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
         radius,
         color: '#ffffff',
         weight: 5.5,
-        opacity: 0.85,
+        opacity: 0.88,
         fill: false,
         interactive: false
       }).addTo(this.gameMap);
 
       const zoneCircle = L.circle(center, {
         radius,
-        color: '#09090b',
+        color: '#dc2626',
         weight: 2.5,
         dashArray: '7, 6',
-        fillColor: '#09090b',
-        fillOpacity: 0.12
+        fillColor: '#ef4444',
+        fillOpacity: 0.14
       }).addTo(this.gameMap);
 
       const popupEl = this.buildTacticalPopup(ann, `Suchgebiet (${radius}m)`);
@@ -1987,10 +2176,10 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       const labelIcon = L.divIcon({
         className: 'mx-tactic-div-icon',
         html: `<div class="tactic-zone-tag">? ${radius}m • ${safeAuthor}</div>`,
-        iconSize: [120, 24],
-        iconAnchor: [60, 12]
+        iconSize: [126, 24],
+        iconAnchor: [63, 12]
       });
-      const labelMarker = L.marker(center, { icon: labelIcon, zIndexOffset: 410 }).addTo(this.gameMap);
+      const labelMarker = L.marker(center, { icon: labelIcon, zIndexOffset: 420 }).addTo(this.gameMap);
       labelMarker.bindPopup(popupEl);
 
       layers.push(haloCircle, zoneCircle, labelMarker);
@@ -2000,14 +2189,69 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       let tagText = '';
       let popupTitle = '';
       let variantClass = '';
+      let hasPulse = false;
 
-      if (ann.type === 'SUSPECT') {
+      if (ann.type === 'GOING') {
+        variantClass = 'is-going';
+        hasPulse = true;
+        tagText = `Gehe hin • ${safeAuthor}`;
+        popupTitle = `${ann.authorName}: Dort gehe ich hin`;
+        svg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>`;
+
+        // Draw dashed red movement vector from detective's origin GPS position to destination
+        if (ann.originLat !== undefined && ann.originLng !== undefined) {
+          const moveDist = this.calculateDistance(ann.originLat, ann.originLng, ann.lat, ann.lng);
+          if (moveDist >= 10) {
+            const origPt: [number, number] = [ann.originLat, ann.originLng];
+            const destPt: [number, number] = [ann.lat, ann.lng];
+            const moveHalo = L.polyline([origPt, destPt], {
+              color: '#ffffff',
+              weight: 5.5,
+              opacity: 0.85,
+              lineCap: 'round',
+              interactive: false
+            }).addTo(this.gameMap);
+            const moveLine = L.polyline([origPt, destPt], {
+              color: '#dc2626',
+              weight: 2.8,
+              opacity: 0.95,
+              dashArray: '5, 7',
+              lineCap: 'round'
+            }).addTo(this.gameMap);
+            moveLine.bindPopup(this.buildTacticalPopup(ann, popupTitle));
+
+            const midPt: [number, number] = [
+              (ann.originLat + ann.lat) / 2,
+              (ann.originLng + ann.lng) / 2
+            ];
+            const midArrow = L.marker(midPt, {
+              icon: this.createArrowIcon(origPt, destPt),
+              interactive: false,
+              zIndexOffset: 425
+            }).addTo(this.gameMap);
+            const updateMidArrow = () => {
+              if (!this.gameMap || !this.tacticalLayers.has(ann.id)) return;
+              midArrow.setIcon(this.createArrowIcon(origPt, destPt));
+            };
+            this.tacticalArrowUpdaters.push(updateMidArrow);
+
+            layers.push(moveHalo, moveLine, midArrow);
+          }
+        }
+      } else if (ann.type === 'PING') {
+        variantClass = 'is-ping';
+        hasPulse = true;
+        tagText = `Ping • ${safeAuthor}`;
+        popupTitle = 'Roter Team-Ping';
+        svg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" fill="currentColor"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>`;
+      } else if (ann.type === 'SUSPECT') {
         variantClass = 'is-suspect';
         tagText = `Verdacht • ${safeAuthor}`;
         popupTitle = 'Verdacht (?)';
         svg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.6-2.5 2-2.5 3.8"/><circle cx="12" cy="16.8" r="0.6" fill="currentColor"/></svg>`;
       } else if (ann.type === 'SIGHTING') {
         variantClass = 'is-sighting';
+        hasPulse = true;
         tagText = `Sichtung! • ${safeAuthor}`;
         popupTitle = 'Sichtung (!)';
         svg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="3"/></svg>`;
@@ -2020,7 +2264,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
 
       const pinHtml = `
         <div class="tactic-stamp-marker ${variantClass}">
-          ${ann.type === 'SIGHTING' ? '<div class="tactic-pulse-ring"></div>' : ''}
+          ${hasPulse ? '<div class="tactic-pulse-ring"></div>' : ''}
           <div class="tactic-stamp-badge">${svg}</div>
           <div class="tactic-stamp-label">${tagText}</div>
         </div>
@@ -2029,11 +2273,11 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       const icon = L.divIcon({
         className: 'mx-tactic-div-icon',
         html: pinHtml,
-        iconSize: [84, 54],
-        iconAnchor: [42, 26]
+        iconSize: [96, 54],
+        iconAnchor: [48, 26]
       });
 
-      const marker = L.marker(center, { icon, zIndexOffset: 450 }).addTo(this.gameMap);
+      const marker = L.marker(center, { icon, zIndexOffset: 460 }).addTo(this.gameMap);
       marker.bindPopup(this.buildTacticalPopup(ann, popupTitle));
       layers.push(marker);
     }
@@ -2056,8 +2300,8 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       className: 'mx-tactic-div-icon',
       html: `
         <div class="tactic-arrow-head" style="transform: rotate(${angleDeg}deg)">
-          <svg viewBox="0 0 24 24" width="22" height="22">
-            <path d="M12 3 L20 19 L12 15 L4 19 Z" fill="#09090b" stroke="#ffffff" stroke-width="2.4" stroke-linejoin="round"/>
+          <svg viewBox="0 0 24 24" width="24" height="24">
+            <path d="M12 2 L21 20 L12 15.5 L3 20 Z" fill="#dc2626" stroke="#ffffff" stroke-width="2.4" stroke-linejoin="round"/>
           </svg>
         </div>
       `,

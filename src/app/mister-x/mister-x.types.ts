@@ -2,9 +2,26 @@ export type Role = 'MISTER_X' | 'DETECTIVE' | 'UNASSIGNED';
 
 export type GameStatus = 'LOBBY' | 'PLAYING' | 'CAUGHT' | 'ESCAPED' | 'ENDED';
 
-export type TacticalTool = 'NONE' | 'LINE' | 'ZONE' | 'SUSPECT' | 'SIGHTING' | 'BLOCK';
+export type TacticalTool =
+  | 'NONE'
+  | 'GOING'
+  | 'PING'
+  | 'ARROW'
+  | 'LINE'
+  | 'ZONE'
+  | 'SIGHTING'
+  | 'SUSPECT'
+  | 'BLOCK';
 
-export type TacticalAnnotationType = 'LINE' | 'ZONE' | 'SUSPECT' | 'SIGHTING' | 'BLOCK';
+export type TacticalAnnotationType =
+  | 'GOING'
+  | 'PING'
+  | 'ARROW'
+  | 'LINE'
+  | 'ZONE'
+  | 'SIGHTING'
+  | 'SUSPECT'
+  | 'BLOCK';
 
 export interface TacticalAnnotation {
   id: string;
@@ -15,6 +32,8 @@ export interface TacticalAnnotation {
   points?: [number, number][];
   lat?: number;
   lng?: number;
+  originLat?: number;
+  originLng?: number;
   radiusMeters?: number;
 }
 
