@@ -486,7 +486,7 @@
 
         <!-- Detective Tactical Sketch Button (Detective-Only) -->
         <button
-          class="hud-btn"
+          class="hud-btn hud-tactic-btn"
           *ngIf="myRole === 'DETECTIVE'"
           [class.active]="tacticalBarOpen"
           (click)="toggleTacticalBar()"
@@ -575,7 +575,7 @@
     </div>
 
     <!-- BOTTOM TACTICAL STATUS BAR -->
-    <footer class="game-hud-bottom">
+    <div class="game-hud-bottom">
       <!-- Compact Next-Ping Timer (Bottom-Right) -->
       <div class="hud-ping-mini" [class.urgent]="nextPingInSeconds <= 15">
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -915,7 +915,7 @@
           </div>
         </div>
       </div>
-    </footer>
+    </div>
 
     <!-- ROLE REVEAL FULLSCREEN MODAL AT GAME START -->
     <div class="role-reveal-backdrop" *ngIf="showRoleRevealModal" (click)="closeRoleRevealModal()">

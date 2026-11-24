@@ -952,12 +952,8 @@
     pointer-events: auto;
   }
 
-  @media (max-width: 680px) {
-    flex-wrap: wrap;
-    gap: 6px;
-
+  @media (max-width: 768px) {
     .hud-role-pill {
-      order: 1;
       padding: 5px 11px 5px 6px;
       .role-icon-box {
         width: 28px;
@@ -968,13 +964,26 @@
     }
 
     .hud-tools {
-      order: 2;
-      margin-left: auto;
-      gap: 5px;
+      position: fixed;
+      top: max(6px, calc(env(safe-area-inset-top, 10px) - 4px));
+      right: 6px;
+      padding: 4px;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+      max-height: calc(100dvh - 185px);
+      overflow-y: auto;
+      scrollbar-width: none;
+      z-index: 1210;
+
+      &::-webkit-scrollbar {
+        display: none;
+      }
 
       .hud-btn {
         width: 36px;
         height: 36px;
+        flex-shrink: 0;
       }
     }
   }
@@ -1080,6 +1089,31 @@
         background: #000000;
         color: #ffffff;
         border-color: #ffffff;
+      }
+    }
+
+    &.hud-tactic-btn {
+      border-color: rgba(239, 68, 68, 0.8);
+      color: #fca5a5;
+      background: rgba(127, 29, 29, 0.42);
+
+      &:hover {
+        border-color: #ef4444;
+        color: #ffffff;
+        background: rgba(185, 28, 28, 0.65);
+      }
+
+      &.active {
+        background: #dc2626;
+        border-color: #ffffff;
+        color: #ffffff;
+        box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.45), 0 4px 14px rgba(0, 0, 0, 0.55);
+
+        .hud-badge {
+          background: #ffffff;
+          color: #dc2626;
+          border-color: #ffffff;
+        }
       }
     }
 
@@ -2758,6 +2792,14 @@
   border: 1.5px solid rgba(255, 255, 255, 0.35);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.78);
   animation: fadeIn 0.15s ease;
+
+  @media (max-width: 768px) {
+    top: max(56px, calc(env(safe-area-inset-top, 10px) + 46px));
+    right: 56px;
+    left: 10px;
+    max-width: 240px;
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 
