@@ -2,108 +2,229 @@
 
   <!-- TOAST NOTIFICATION -->
   <div class="mx-toast" *ngIf="notificationText">
+    <span class="toast-dot"></span>
     <span>{{ notificationText }}</span>
   </div>
 
   <!-- ========================================== -->
-  <!-- 1. JOIN / START SCREEN                    -->
+  <!-- 1. JOIN / START SCREEN                     -->
   <!-- ========================================== -->
   <div class="screen join-screen" *ngIf="viewState === 'JOIN_SCREEN'">
     <div class="join-card">
-      <div class="logo-badge">
-        <span class="logo-icon">🕵️‍♂️ ⚡ 🎩</span>
+      <div class="brand-header">
+        <div class="logo-emblem" aria-hidden="true">
+          <!-- Crisp Incognito / Radar Emblem -->
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 11h20" />
+            <path d="M5 11l2.2-6.5a1.5 1.5 0 0 1 1.9-.9L12 4.5l2.9-.9a1.5 1.5 0 0 1 1.9.9L19 11" />
+            <circle cx="8.5" cy="16.5" r="2.75" />
+            <circle cx="15.5" cy="16.5" r="2.75" />
+            <path d="M11.25 16.5h1.5" />
+          </svg>
+        </div>
+        <div class="brand-kicker">REAL-LIFE GPS OPERATION</div>
+        <h1 class="game-title">MISTER X</h1>
+        <p class="game-subtitle">Taktische Live-Verfolgungsjagd im echten Gelände</p>
       </div>
-      <h1 class="game-title">MISTER X</h1>
-      <p class="game-subtitle">Reallife GPS Jagd im echten Leben</p>
 
       <div class="form-group">
-        <label for="pName">Dein Spielername</label>
-        <input
-          id="pName"
-          type="text"
-          class="mx-input"
-          placeholder="z.B. James, Sherlock, Mia..."
-          [(ngModel)]="playerName"
-          maxlength="20"
-        />
+        <label for="pName">Spielername / Rufzeichen</label>
+        <div class="input-with-icon">
+          <svg class="field-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+          <input
+            id="pName"
+            type="text"
+            class="mx-input has-icon"
+            placeholder="Name eingeben (z. B. Agent 07)"
+            [(ngModel)]="playerName"
+            maxlength="20"
+            (keyup.enter)="roomCode.trim() ? joinLobby() : createLobby()"
+          />
+        </div>
       </div>
 
       <!-- Action buttons -->
       <div class="action-grid">
-        <button class="mx-btn btn-primary" (click)="createLobby()" [disabled]="!playerName.trim() || connecting">
-          <span>👑 Neue Lobby erstellen</span>
+        <button class="mx-btn btn-primary btn-full" (click)="createLobby()" [disabled]="!playerName.trim() || connecting">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="16" />
+            <line x1="8" y1="12" x2="16" y2="12" />
+          </svg>
+          <span>{{ connecting && isHost ? 'Verbinde...' : 'Neue Lobby erstellen' }}</span>
         </button>
 
         <div class="join-divider">
-          <span>ODER EINER LOBBY BEITRETEN</span>
+          <span>ODER MIT CODE BEITRETEN</span>
         </div>
 
         <div class="join-box">
           <input
             type="text"
             class="mx-input code-input"
-            placeholder="5-stelliger Code (z.B. X7K9P)"
+            placeholder="CODE (X7K9P)"
             [(ngModel)]="roomCode"
             maxlength="6"
+            (keyup.enter)="joinLobby()"
           />
           <button class="mx-btn btn-secondary" (click)="joinLobby()" [disabled]="!playerName.trim() || !roomCode.trim() || connecting">
-            <span>🚀 Beitreten</span>
+            <span>{{ connecting && !isHost ? '...' : 'Beitreten' }}</span>
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
           </button>
         </div>
       </div>
 
       <div class="error-msg" *ngIf="connectionError">
-        ⚠️ {{ connectionError }}
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <span>{{ connectionError }}</span>
       </div>
 
       <div class="game-how-to">
-        <h4>📖 So funktioniert's:</h4>
-        <ul>
-          <li><strong>Echtes GPS:</strong> Ihr bewegt euch draußen zu Fuß in der Stadt/Nachbarschaft.</li>
-          <li><strong>Der Umkreis:</strong> Der Owner bestimmt den Spielbereich auf der Karte.</li>
-          <li><strong>Alle 3 Minuten:</strong> Mister X sendet einen automatischen GPS-Ping für alle Detektive!</li>
-          <li><strong>Das Ziel:</strong> Die Detektive müssen Mister X aufspüren und auf unter 30 Meter fangen!</li>
-        </ul>
+        <div class="how-to-header">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          <h4>Einsatzprotokoll</h4>
+        </div>
+        <div class="how-to-grid">
+          <div class="how-to-item">
+            <span class="step-num">01</span>
+            <div>
+              <strong>Live-GPS</strong>
+              <span>Bewegung draussen zu Fuss in Echtzeit.</span>
+            </div>
+          </div>
+          <div class="how-to-item">
+            <span class="step-num">02</span>
+            <div>
+              <strong>Einsatzzone</strong>
+              <span>Der Host definiert Zentrum und Umkreis auf der Karte.</span>
+            </div>
+          </div>
+          <div class="how-to-item">
+            <span class="step-num">03</span>
+            <div>
+              <strong>Radar-Ping</strong>
+              <span>Mister X sendet im Intervall seinen exakten Standort.</span>
+            </div>
+          </div>
+          <div class="how-to-item">
+            <span class="step-num">04</span>
+            <div>
+              <strong>Zugriff</strong>
+              <span>Detektive stellen Mister X auf Distanz ≤ {{ settings.catchRadiusMeters }}m.</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="back-link">
-        <a routerLink="/">← Zurück zur Startseite</a>
+        <a routerLink="/">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+          <span>Zurück zur Startseite</span>
+        </a>
       </div>
     </div>
   </div>
 
   <!-- ========================================== -->
-  <!-- 2. LOBBY WAITING SCREEN                   -->
+  <!-- 2. LOBBY WAITING SCREEN                    -->
   <!-- ========================================== -->
   <div class="screen lobby-screen" *ngIf="viewState === 'LOBBY'">
     <header class="lobby-header">
-      <div class="room-code-tag">
-        <span class="code-label">LOBBY CODE:</span>
-        <strong class="code-value">{{ roomCode }}</strong>
+      <div class="lobby-brand-group">
+        <div class="mini-emblem">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 11h18" />
+            <path d="M5 11l2-6h10l2 6" />
+            <circle cx="8.5" cy="16.5" r="2.5" />
+            <circle cx="15.5" cy="16.5" r="2.5" />
+            <path d="M11 16.5h2" />
+          </svg>
+        </div>
+        <div class="room-code-tag">
+          <span class="code-label">LOBBY</span>
+          <strong class="code-value">{{ roomCode }}</strong>
+        </div>
       </div>
+
       <div class="header-actions">
-        <button class="mini-btn" (click)="shareInvite()" title="Einladen">
-          <span>📤 Teilen</span>
+        <button class="mini-btn" (click)="shareInvite()" title="Einladung teilen">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+          </svg>
+          <span class="btn-label">Teilen</span>
         </button>
-        <button class="mini-btn" (click)="copyShareLink()" title="Link kopieren">
-          <span>📋 {{ copySuccess ? 'Kopiert!' : 'Link' }}</span>
+
+        <button class="mini-btn" [class.is-copied]="copySuccess" (click)="copyShareLink()" title="Einladungslink kopieren">
+          <svg *ngIf="!copySuccess" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+          </svg>
+          <svg *ngIf="copySuccess" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          <span class="btn-label">{{ copySuccess ? 'Kopiert' : 'Link' }}</span>
         </button>
-        <button class="mini-btn" (click)="showQrModal = true" title="QR-Code">
-          <span>📱 QR-Code</span>
+
+        <button class="mini-btn" (click)="showQrModal = true" title="QR-Code anzeigen">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+            <rect x="14" y="14" width="3" height="3" />
+            <line x1="21" y1="14" x2="21" y2="14.01" />
+            <line x1="14" y1="21" x2="21" y2="21" />
+          </svg>
+          <span class="btn-label">QR-Code</span>
         </button>
-        <button class="mini-btn btn-danger" (click)="leaveLobby()" title="Verlassen">
-          <span>Verlassen</span>
+
+        <button class="mini-btn btn-outline-subtle" (click)="leaveLobby()" title="Lobby verlassen">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          <span class="btn-label">Verlassen</span>
         </button>
       </div>
     </header>
 
     <div class="lobby-content">
-      <!-- Left Column: Map & Range Settings (Host) -->
+      <!-- Left Column: Map & Range Settings -->
       <div class="lobby-settings-panel">
         <div class="panel-section">
-          <h3>📍 Spielbereich & Umkreis (Range)</h3>
+          <div class="section-title-row">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="12" r="3" />
+              <line x1="12" y1="2" x2="12" y2="5" />
+              <line x1="12" y1="19" x2="12" y2="22" />
+              <line x1="2" y1="12" x2="5" y2="12" />
+              <line x1="19" y1="12" x2="22" y2="12" />
+            </svg>
+            <h3>Einsatzgebiet & Parameter</h3>
+          </div>
           <p class="hint-text">
-            {{ isHost ? 'Klicke auf die Karte oder ziehe den Pin, um das Zentrum festzulegen.' : 'Der Host definiert den Spielbereich.' }}
+            {{ isHost ? 'Tippe auf die Karte oder verschiebe die Zielmarkierung, um das Zentrum zu setzen.' : 'Der Host konfiguriert aktuell den Einsatzbereich.' }}
           </p>
 
           <!-- Interactive preview map -->
@@ -113,51 +234,78 @@
 
           <div class="center-gps-row" *ngIf="isHost">
             <button class="mx-btn btn-small" (click)="setCenterToMyGps()">
-              📍 Mein aktueller Standort als Zentrum
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="7" />
+                <circle cx="12" cy="12" r="2" />
+                <line x1="12" y1="2" x2="12" y2="5" />
+                <line x1="12" y1="19" x2="12" y2="22" />
+                <line x1="2" y1="12" x2="5" y2="12" />
+                <line x1="19" y1="12" x2="22" y2="12" />
+              </svg>
+              <span>Aktuellen GPS-Standort als Zentrum</span>
             </button>
           </div>
 
-          <!-- Radius Selector -->
-          <div class="setting-item" *ngIf="isHost">
-            <div class="setting-label-row">
-              <span>Umkreis-Radius:</span>
-              <strong>{{ settings.radiusMeters >= 1000 ? (settings.radiusMeters / 1000) + ' km' : settings.radiusMeters + ' m' }}</strong>
+          <!-- Read-only parameter overview for Guests -->
+          <div class="guest-params-grid" *ngIf="!isHost">
+            <div class="param-tile">
+              <span class="param-label">Zonen-Radius</span>
+              <strong class="param-val">{{ settings.radiusMeters >= 1000 ? (settings.radiusMeters / 1000) + ' km' : settings.radiusMeters + ' m' }}</strong>
             </div>
-            <div class="preset-buttons">
-              <button [class.active]="settings.radiusMeters === 300" (click)="updateRadius(300)">300m</button>
-              <button [class.active]="settings.radiusMeters === 500" (click)="updateRadius(500)">500m</button>
-              <button [class.active]="settings.radiusMeters === 800" (click)="updateRadius(800)">800m</button>
-              <button [class.active]="settings.radiusMeters === 1200" (click)="updateRadius(1200)">1.2km</button>
-              <button [class.active]="settings.radiusMeters === 2000" (click)="updateRadius(2000)">2km</button>
-              <button [class.active]="settings.radiusMeters === 3000" (click)="updateRadius(3000)">3km</button>
+            <div class="param-tile">
+              <span class="param-label">Ping-Intervall</span>
+              <strong class="param-val">{{ settings.pingIntervalSeconds / 60 }} Min.</strong>
             </div>
-          </div>
-
-          <!-- Ping Interval Selector -->
-          <div class="setting-item" *ngIf="isHost">
-            <div class="setting-label-row">
-              <span>Mister X Ping-Intervall:</span>
-              <strong>{{ settings.pingIntervalSeconds / 60 }} Minuten</strong>
-            </div>
-            <div class="preset-buttons">
-              <button [class.active]="settings.pingIntervalSeconds === 60" (click)="updatePingInterval(60)">1 Min</button>
-              <button [class.active]="settings.pingIntervalSeconds === 120" (click)="updatePingInterval(120)">2 Min</button>
-              <button [class.active]="settings.pingIntervalSeconds === 180" (click)="updatePingInterval(180)">3 Min (Standard)</button>
-              <button [class.active]="settings.pingIntervalSeconds === 300" (click)="updatePingInterval(300)">5 Min</button>
+            <div class="param-tile">
+              <span class="param-label">Fang-Distanz</span>
+              <strong class="param-val">≤ {{ settings.catchRadiusMeters }} m</strong>
             </div>
           </div>
 
-          <!-- Mister X Assignment -->
-          <div class="setting-item" *ngIf="isHost">
-            <div class="setting-label-row">
-              <span>Mister X Rolle:</span>
-              <strong>{{ settings.misterXPlayerId ? 'Ausgewählt' : 'Zufällig auslosen' }}</strong>
+          <!-- Host Controls -->
+          <ng-container *ngIf="isHost">
+            <!-- Radius Selector -->
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <span>Umkreis-Radius</span>
+                <strong>{{ settings.radiusMeters >= 1000 ? (settings.radiusMeters / 1000) + ' km' : settings.radiusMeters + ' m' }}</strong>
+              </div>
+              <div class="preset-buttons">
+                <button [class.active]="settings.radiusMeters === 300" (click)="updateRadius(300)">300 m</button>
+                <button [class.active]="settings.radiusMeters === 500" (click)="updateRadius(500)">500 m</button>
+                <button [class.active]="settings.radiusMeters === 800" (click)="updateRadius(800)">800 m</button>
+                <button [class.active]="settings.radiusMeters === 1200" (click)="updateRadius(1200)">1.2 km</button>
+                <button [class.active]="settings.radiusMeters === 2000" (click)="updateRadius(2000)">2.0 km</button>
+                <button [class.active]="settings.radiusMeters === 3000" (click)="updateRadius(3000)">3.0 km</button>
+              </div>
             </div>
-            <select class="mx-select" [(ngModel)]="settings.misterXPlayerId" (change)="broadcastSettings()">
-              <option value="">🎲 Zufälliger Spieler beim Start</option>
-              <option *ngFor="let p of players" [value]="p.id">🎩 {{ p.name }} {{ p.id === playerId ? '(Du)' : '' }}</option>
-            </select>
-          </div>
+
+            <!-- Ping Interval Selector -->
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <span>Radar-Ping Intervall</span>
+                <strong>{{ settings.pingIntervalSeconds / 60 }} Min.</strong>
+              </div>
+              <div class="preset-buttons">
+                <button [class.active]="settings.pingIntervalSeconds === 60" (click)="updatePingInterval(60)">1 Min</button>
+                <button [class.active]="settings.pingIntervalSeconds === 120" (click)="updatePingInterval(120)">2 Min</button>
+                <button [class.active]="settings.pingIntervalSeconds === 180" (click)="updatePingInterval(180)">3 Min</button>
+                <button [class.active]="settings.pingIntervalSeconds === 300" (click)="updatePingInterval(300)">5 Min</button>
+              </div>
+            </div>
+
+            <!-- Mister X Assignment -->
+            <div class="setting-item">
+              <div class="setting-label-row">
+                <span>Rollenzuweisung (Mister X)</span>
+                <strong>{{ settings.misterXPlayerId ? 'Manuell' : 'Zufall' }}</strong>
+              </div>
+              <select class="mx-select" [(ngModel)]="settings.misterXPlayerId" (change)="broadcastSettings()">
+                <option value="">Zufällige Zulosung beim Start</option>
+                <option *ngFor="let p of players" [value]="p.id">{{ p.name }} {{ p.id === playerId ? '(Du)' : '' }}</option>
+              </select>
+            </div>
+          </ng-container>
         </div>
       </div>
 
@@ -165,36 +313,72 @@
       <div class="lobby-players-panel">
         <div class="panel-section">
           <div class="players-header">
-            <h3>👥 Spieler in der Lobby ({{ players.length }})</h3>
-            <span class="live-dot">LIVE</span>
+            <div class="section-title-row">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              <h3>Teilnehmer ({{ players.length }})</h3>
+            </div>
+            <span class="live-badge">
+              <span class="pulse-dot"></span>
+              BEREIT
+            </span>
           </div>
 
           <div class="player-list">
             <div class="player-card" *ngFor="let p of players" [class.is-self]="p.id === playerId">
-              <div class="player-avatar">
-                {{ p.id === settings.misterXPlayerId ? '🎩' : '🕵️' }}
+              <div class="player-avatar" [class.is-designated-x]="p.id === settings.misterXPlayerId">
+                <!-- Incognito icon if designated Mister X, else shield/agent icon -->
+                <svg *ngIf="p.id === settings.misterXPlayerId" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 11h18" />
+                  <path d="M5 11l2-6h10l2 6" />
+                  <circle cx="8.5" cy="16.5" r="2.5" />
+                  <circle cx="15.5" cy="16.5" r="2.5" />
+                  <path d="M11 16.5h2" />
+                </svg>
+                <svg *ngIf="p.id !== settings.misterXPlayerId" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
               </div>
               <div class="player-info">
-                <span class="player-name">{{ p.name }} {{ p.id === playerId ? '(Du)' : '' }}</span>
-                <span class="player-status">
-                  <span *ngIf="p.isHost" class="host-pill">👑 Host / Owner</span>
-                  <span class="gps-pill" [class.active]="p.lat">📍 GPS Bereit</span>
-                </span>
+                <div class="player-name-line">
+                  <span class="player-name">{{ p.name }}</span>
+                  <span *ngIf="p.id === playerId" class="you-tag">DU</span>
+                </div>
+                <div class="player-status">
+                  <span *ngIf="p.isHost" class="host-pill">
+                    <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor">
+                      <path d="M2 19h20v2H2v-2zm0-13l5 4 5-6 5 6 5-4v11H2V6z" />
+                    </svg>
+                    HOST
+                  </span>
+                  <span class="gps-pill" [class.active]="p.lat">
+                    <span class="status-dot"></span>
+                    {{ p.lat ? 'GPS Signal aktiv' : 'Suche GPS...' }}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
 
           <!-- Host Start Button -->
           <div class="start-game-box" *ngIf="isHost">
-            <button class="mx-btn btn-success btn-large" (click)="startGame()">
-              <span>🎮 SPIEL JETZT STARTEN</span>
+            <button class="mx-btn btn-primary btn-large" (click)="startGame()">
+              <svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor">
+                <polygon points="6 4 20 12 6 20 6 4" />
+              </svg>
+              <span>OPERATION STARTEN</span>
             </button>
-            <p class="start-hint">Rollen werden verteilt & das Spiel beginnt sofort!</p>
+            <p class="start-hint">Rollen werden zugewiesen und der Live-Timer startet sofort.</p>
           </div>
 
           <div class="waiting-box" *ngIf="!isHost">
             <div class="spinner"></div>
-            <p>Warte darauf, dass der Host das Spiel startet...</p>
+            <p>Warte auf Startfreigabe durch den Host...</p>
           </div>
         </div>
       </div>
@@ -209,44 +393,116 @@
     <!-- TOP TACTICAL HUD -->
     <header class="game-hud-top">
       <div class="hud-role-pill" [class.is-misterx]="myRole === 'MISTER_X'">
-        <span class="role-icon">{{ myRole === 'MISTER_X' ? '🎩' : '🕵️' }}</span>
+        <div class="role-icon-box">
+          <!-- Mister X SVG -->
+          <svg *ngIf="myRole === 'MISTER_X'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 11h18" />
+            <path d="M5 11l2-6h10l2 6" />
+            <circle cx="8.5" cy="16.5" r="2.5" />
+            <circle cx="15.5" cy="16.5" r="2.5" />
+            <path d="M11 16.5h2" />
+          </svg>
+          <!-- Detective Shield SVG -->
+          <svg *ngIf="myRole !== 'MISTER_X'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            <circle cx="12" cy="11" r="2.5" />
+          </svg>
+        </div>
         <div class="role-texts">
           <strong class="role-title">{{ myRole === 'MISTER_X' ? 'MISTER X' : 'DETEKTIV' }}</strong>
-          <span class="role-sub">{{ myRole === 'MISTER_X' ? 'Entkomme!' : 'Jage Mister X!' }}</span>
+          <span class="role-sub">{{ myRole === 'MISTER_X' ? 'Tarnmodus' : 'Verfolgung' }}</span>
         </div>
       </div>
 
       <!-- Ping Countdown Widget -->
       <div class="hud-ping-widget" [class.urgent]="nextPingInSeconds <= 15">
-        <div class="ping-sonar-icon">
-          <div class="sonar-wave"></div>
-          📡
+        <div class="ping-sonar-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="2" />
+            <path d="M16.24 7.76a6 6 0 0 1 0 8.49" />
+            <path d="M7.76 16.24a6 6 0 0 1 0-8.49" />
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+            <path d="M4.93 19.07a10 10 0 0 1 0-14.14" />
+          </svg>
         </div>
         <div class="ping-countdown-block">
-          <span class="ping-label">{{ myRole === 'MISTER_X' ? 'Aufdeckung in' : 'Nächster Ping in' }}</span>
+          <span class="ping-label">{{ myRole === 'MISTER_X' ? 'Aufdeckung' : 'Nächster Ping' }}</span>
           <strong class="ping-timer">{{ formatSeconds(nextPingInSeconds) }}</strong>
         </div>
       </div>
 
-      <!-- Quick Action Buttons -->
+      <!-- Quick Action Toolbar (High-Contrast Vector Icons) -->
       <div class="hud-tools">
-        <button class="hud-btn compass-btn rotated" *ngIf="mapBearing !== 0" (click)="resetNorth()" title="Nach Norden ausrichten (0°)">
-          <span class="compass-needle" [style.transform]="'rotate(' + (-mapBearing) + 'deg)'">🧭</span>
+        <!-- Compass / Reset North -->
+        <button
+          class="hud-btn compass-btn rotated"
+          *ngIf="mapBearing !== 0"
+          (click)="resetNorth()"
+          title="Nach Norden ausrichten (0°)"
+          aria-label="Nach Norden ausrichten"
+        >
+          <span class="compass-needle" [style.transform]="'rotate(' + (-mapBearing) + 'deg)'">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 16 14 12 11 8 14 12 2" fill="currentColor" />
+              <polygon points="12 22 16 14 12 17 8 14 12 22" />
+            </svg>
+          </span>
         </button>
-        <button class="hud-btn" (click)="centerOnMe()" title="Zentrieren">
-          <span>🎯</span>
+
+        <!-- Center on My GPS -->
+        <button class="hud-btn" (click)="centerOnMe()" title="Auf meinen Standort zentrieren" aria-label="Standort zentrieren">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="7" />
+            <circle cx="12" cy="12" r="2" fill="currentColor" />
+            <line x1="12" y1="2" x2="12" y2="5" />
+            <line x1="12" y1="19" x2="12" y2="22" />
+            <line x1="2" y1="12" x2="5" y2="12" />
+            <line x1="19" y1="12" x2="22" y2="12" />
+          </svg>
         </button>
-        <button class="hud-btn" (click)="fitGameZone()" title="Ganzes Gebiet">
-          <span>🗺️</span>
+
+        <!-- Fit Entire Game Zone -->
+        <button class="hud-btn" (click)="fitGameZone()" title="Gesamte Spielzone anzeigen" aria-label="Spielzone anzeigen">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9" />
+            <polyline points="9 21 3 21 3 15" />
+            <line x1="21" y1="3" x2="14" y2="10" />
+            <line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
         </button>
-        <button class="hud-btn" (click)="toggleMute()" title="Ton an/aus">
-          <span>{{ soundMuted ? '🔇' : '🔊' }}</span>
+
+        <!-- Audio Mute / Unmute -->
+        <button class="hud-btn" [class.is-muted]="soundMuted" (click)="toggleMute()" title="Ton ein/aus" aria-label="Ton umschalten">
+          <svg *ngIf="!soundMuted" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+          </svg>
+          <svg *ngIf="soundMuted" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <line x1="23" y1="9" x2="17" y2="15" />
+            <line x1="17" y1="9" x2="23" y2="15" />
+          </svg>
         </button>
-        <button class="hud-btn" [class.active]="showPingHistory" (click)="togglePingHistory()" title="Pings">
-          <span>📜</span>
+
+        <!-- Ping Log Drawer -->
+        <button class="hud-btn" [class.active]="showPingHistory" (click)="togglePingHistory()" title="Ping-Protokoll" aria-label="Ping-Protokoll">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <polyline points="12 7 12 12 15 15" />
+          </svg>
+          <span class="hud-badge" *ngIf="pings.length > 0">{{ pings.length }}</span>
         </button>
-        <button class="hud-btn" [class.active]="showPlayerListDrawer" (click)="togglePlayerListDrawer()" title="Spieler">
-          <span>👥</span>
+
+        <!-- Players Drawer -->
+        <button class="hud-btn" [class.active]="showPlayerListDrawer" (click)="togglePlayerListDrawer()" title="Spielerübersicht" aria-label="Spielerübersicht">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+          <span class="hud-badge">{{ players.length }}</span>
         </button>
       </div>
     </header>
@@ -258,33 +514,49 @@
 
     <!-- BOTTOM TACTICAL STATUS BAR -->
     <footer class="game-hud-bottom">
-      <!-- OUT OF BOUNDS WARNING BANNER (Positioned cleanly at bottom center!) -->
+      <!-- OUT OF BOUNDS WARNING BANNER (High-contrast inverted monochrome) -->
       <div class="zone-alert-banner" *ngIf="isOutOfBounds">
-        ⚠️ ACHTUNG: Du bist außerhalb der Spielzone! Kehre zurück!
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        <span>AUSSERHALB DER EINSATZZONE — BITTE ZURÜCKKEHREN</span>
       </div>
 
       <div class="bottom-status-card">
         <!-- Detective View -->
         <ng-container *ngIf="myRole === 'DETECTIVE'">
-          <div class="ping-info-row" *ngIf="lastPing">
-            <span class="ping-badge">Ping #{{ lastPing.pingNumber }}</span>
-            <span class="ping-time">{{ pings.length }} Pings bisher</span>
+          <div class="ping-info-row" *ngIf="lastPing" (click)="centerOnLastPing()" title="Zum letzten Ping springen">
+            <span class="ping-badge">PING #{{ lastPing.pingNumber }}</span>
+            <span class="ping-time">{{ pings.length }} {{ pings.length === 1 ? 'Ortung' : 'Ortungen' }}</span>
             <span class="ping-dist" *ngIf="distanceToMisterX !== null">
-              📏 Distanz: <strong>{{ distanceToMisterX }}m</strong>
-              <span *ngIf="getDirectionToMisterX()"> (Richtung {{ getDirectionToMisterX() }})</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="3 11 22 2 13 21 11 13 3 11" />
+              </svg>
+              <strong>{{ distanceToMisterX }} m</strong>
+              <span class="dir-tag" *ngIf="getDirectionToMisterX()">{{ getDirectionToMisterX() }}</span>
             </span>
           </div>
           <div class="ping-info-row empty" *ngIf="!lastPing">
-            <span>📡 Warten auf den ersten Ping von Mister X...</span>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="2" />
+              <path d="M16.24 7.76a6 6 0 0 1 0 8.49" />
+              <path d="M7.76 16.24a6 6 0 0 1 0-8.49" />
+            </svg>
+            <span>Warte auf erste Radar-Ortung von Mister X...</span>
           </div>
         </ng-container>
 
         <!-- Mister X View -->
         <ng-container *ngIf="myRole === 'MISTER_X'">
           <div class="misterx-status-row">
-            <span class="stealth-badge">🕵️‍♂️ TARNUNG AKTIV</span>
+            <span class="stealth-badge" [class.imminent]="nextPingInSeconds <= 15">
+              <span class="stealth-dot"></span>
+              {{ nextPingInSeconds <= 15 ? 'ORTUNG STEHT BEVOR' : 'TARNUNG AKTIV' }}
+            </span>
             <span class="misterx-hint">
-              {{ nextPingInSeconds <= 15 ? '⚠️ Dein Standort wird gleich aufgedeckt!' : 'Bewege dich unauffällig durch die Zone.' }}
+              {{ nextPingInSeconds <= 15 ? 'Standort wird in Kürze übermittelt.' : 'Halte Abstand zu allen Detektiven.' }}
             </span>
           </div>
         </ng-container>
@@ -297,36 +569,61 @@
             (click)="canCatchMisterX ? openCatchModal() : catchMisterX()"
             [disabled]="!canCatchMisterX && (distanceToMisterX === null || distanceToMisterX > settings.catchRadiusMeters)"
           >
-            <span class="catch-icon">🚨</span>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <circle cx="12" cy="12" r="3" />
+              <line x1="12" y1="1" x2="12" y2="4" />
+              <line x1="12" y1="20" x2="12" y2="23" />
+              <line x1="1" y1="12" x2="4" y2="12" />
+              <line x1="20" y1="12" x2="23" y2="12" />
+            </svg>
             <span class="catch-text">
-              {{ canCatchMisterX ? '⚡ MISTER X FANGEN! (' + distanceToMisterX + 'm!)' : 'FANGEN (' + (distanceToMisterX ? distanceToMisterX + 'm entfernt, nötig: ≤' + settings.catchRadiusMeters + 'm' : 'Suchmodus') + ')' }}
+              {{ canCatchMisterX ? 'ZUGRIFF AUSFÜHREN (' + distanceToMisterX + ' m)' : 'ZUGRIFF (' + (distanceToMisterX !== null ? distanceToMisterX + ' m — Ziel ≤ ' + settings.catchRadiusMeters + ' m' : 'Keine Nahortung') + ')' }}
             </span>
           </button>
         </div>
 
-        <!-- Simulator / Testmode Toggle -->
+        <!-- Compact Tactical Controls / Simulator Bar -->
         <div class="sim-toggle-row">
           <button class="sim-btn" [class.active]="simulationMode" (click)="toggleSimulationMode()">
-            🕹️ Test-Modus (Klick/Tastatur)
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="5 9 2 12 5 15" />
+              <polyline points="9 5 12 2 15 5" />
+              <polyline points="15 19 12 22 9 19" />
+              <polyline points="19 9 22 12 19 15" />
+              <line x1="2" y1="12" x2="22" y2="12" />
+              <line x1="12" y1="2" x2="12" y2="22" />
+            </svg>
+            <span>Test-Modus</span>
           </button>
+
           <button class="sim-btn" *ngIf="isHost" (click)="triggerMisterXPing()">
-            ⚡ Sofort-Ping auslösen
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="2" />
+              <path d="M16.24 7.76a6 6 0 0 1 0 8.49" />
+              <path d="M7.76 16.24a6 6 0 0 1 0-8.49" />
+            </svg>
+            <span>Sofort-Ping</span>
           </button>
-          <button class="sim-btn btn-danger-text" *ngIf="isHost" (click)="restartGame()">
-            🛑 Spiel beenden
+
+          <button class="sim-btn btn-end-game" *ngIf="isHost" (click)="restartGame()">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+            </svg>
+            <span>Runde beenden</span>
           </button>
         </div>
 
-        <!-- Virtual Joystick for Test Mode -->
+        <!-- Virtual D-Pad for Test Mode -->
         <div class="sim-controls" *ngIf="simulationMode">
           <div class="sim-pad">
-            <button (click)="simulateStep('N')">⬆️ N</button>
+            <button (click)="simulateStep('N')" aria-label="Nord">N</button>
             <div class="sim-row">
-              <button (click)="simulateStep('W')">⬅️ W</button>
-              <span>Walk</span>
-              <button (click)="simulateStep('E')">➡️ O</button>
+              <button (click)="simulateStep('W')" aria-label="West">W</button>
+              <span>SIM</span>
+              <button (click)="simulateStep('E')" aria-label="Ost">O</button>
             </div>
-            <button (click)="simulateStep('S')">⬇️ S</button>
+            <button (click)="simulateStep('S')" aria-label="Süd">S</button>
           </div>
         </div>
       </div>
@@ -336,79 +633,120 @@
     <div class="role-reveal-backdrop" *ngIf="showRoleRevealModal" (click)="closeRoleRevealModal()">
       <div class="role-reveal-card" [class.is-misterx]="myRole === 'MISTER_X'" (click)="$event.stopPropagation()">
         <div class="role-badge-tag">
-          {{ myRole === 'MISTER_X' ? 'GEHEIMAUFTRAG' : 'EINSATZBEFEHL' }}
+          {{ myRole === 'MISTER_X' ? 'GEHEIMDOSSIER' : 'EINSATZBEFEHL' }}
         </div>
-        
+
         <div class="role-reveal-avatar">
-          {{ myRole === 'MISTER_X' ? '🎩' : '🕵️‍♂️' }}
+          <svg *ngIf="myRole === 'MISTER_X'" viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 11h20" />
+            <path d="M5 11l2.2-6.5a1.5 1.5 0 0 1 1.9-.9L12 4.5l2.9-.9a1.5 1.5 0 0 1 1.9.9L19 11" />
+            <circle cx="8.5" cy="16.5" r="2.75" />
+            <circle cx="15.5" cy="16.5" r="2.75" />
+            <path d="M11.25 16.5h1.5" />
+          </svg>
+          <svg *ngIf="myRole !== 'MISTER_X'" viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            <circle cx="12" cy="11" r="3" />
+          </svg>
         </div>
 
         <h1 class="role-reveal-title">
-          {{ myRole === 'MISTER_X' ? 'DU BIST MISTER X!' : 'DU BIST DETEKTIV!' }}
+          {{ myRole === 'MISTER_X' ? 'MISTER X' : 'DETEKTIV' }}
         </h1>
 
         <p class="role-reveal-sub">
-          {{ myRole === 'MISTER_X' 
-              ? 'Alle anderen Spieler jagen dich! Bleib in Bewegung und lass dich nicht erwischen.' 
-              : 'Schließe dich mit den anderen Detektiven zusammen und kreist Mister X ein!' }}
+          {{ myRole === 'MISTER_X'
+              ? 'Alle Detektive sind auf deiner Spur. Nutze das Strassennetz, bleib in Bewegung und verhindere den Zugriff.'
+              : 'Koordiniere dich mit deinem Team, analysiere die Radar-Pings und kreise Mister X systematisch ein.' }}
         </p>
 
         <div class="role-briefing-list">
           <div class="briefing-item" *ngIf="myRole === 'MISTER_X'">
-            <span class="briefing-icon">📡</span>
+            <div class="briefing-icon">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="2" />
+                <path d="M16.24 7.76a6 6 0 0 1 0 8.49" />
+                <path d="M7.76 16.24a6 6 0 0 1 0-8.49" />
+              </svg>
+            </div>
             <div class="briefing-text">
-              <strong>Ortungs-Warnung</strong>
-              <span>Alle {{ settings.pingIntervalSeconds / 60 }} Min. wird dein Standort als Ping an alle Detektive gesendet!</span>
+              <strong>Automatische Ortung</strong>
+              <span>Alle {{ settings.pingIntervalSeconds / 60 }} Min. wird deine Position an die Detektive übertragen.</span>
             </div>
           </div>
           <div class="briefing-item" *ngIf="myRole === 'MISTER_X'">
-            <span class="briefing-icon">⚠️</span>
+            <div class="briefing-icon">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
             <div class="briefing-text">
-              <strong>Sicherheitsabstand</strong>
-              <span>Lass keinen Detektiv näher als 10 Meter an dich herankommen!</span>
+              <strong>Sicherheitsdistanz</strong>
+              <span>Halte mindestens {{ settings.catchRadiusMeters }} Meter Abstand zu jedem Detektiv.</span>
             </div>
           </div>
 
           <div class="briefing-item" *ngIf="myRole !== 'MISTER_X'">
-            <span class="briefing-icon">📡</span>
+            <div class="briefing-icon">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="2" />
+                <path d="M16.24 7.76a6 6 0 0 1 0 8.49" />
+                <path d="M7.76 16.24a6 6 0 0 1 0-8.49" />
+              </svg>
+            </div>
             <div class="briefing-text">
-              <strong>Radar-Pings</strong>
-              <span>Achte auf die roten Pings alle {{ settings.pingIntervalSeconds / 60 }} Min., um seine Fährte aufzunehmen.</span>
+              <strong>Intervall-Ortung</strong>
+              <span>Alle {{ settings.pingIntervalSeconds / 60 }} Min. erscheint ein neuer Standort-Ping auf der Karte.</span>
             </div>
           </div>
           <div class="briefing-item" *ngIf="myRole !== 'MISTER_X'">
-            <span class="briefing-icon">🚨</span>
+            <div class="briefing-icon">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </div>
             <div class="briefing-text">
-              <strong>10-Meter Zugriff</strong>
-              <span>Sobald du näher als 10 Meter an ihm bist, erscheint der Fang-Knopf!</span>
+              <strong>Zugriffsdistanz</strong>
+              <span>Ab ≤ {{ settings.catchRadiusMeters }} Meter Distanz wird der Zugriff-Button freigeschaltet.</span>
             </div>
           </div>
         </div>
 
-        <button class="role-confirm-btn" (click)="closeRoleRevealModal()">
-          <span>{{ myRole === 'MISTER_X' ? '🕶️ UNTERTAUCHEN & FLIEHEN' : '🔍 JAGD BEGINNEN' }}</span>
+        <button class="mx-btn btn-primary btn-large" (click)="closeRoleRevealModal()">
+          <span>{{ myRole === 'MISTER_X' ? 'VERSTANDEN — ABTAUCHEN' : 'VERSTANDEN — EINSATZ STARTEN' }}</span>
         </button>
       </div>
     </div>
 
-    <!-- CATCH POPUP (WHEN WITHIN 10 METERS OF MISTER X) -->
+    <!-- CATCH POPUP (WHEN WITHIN CATCH RADIUS OF MISTER X) -->
     <div class="catch-modal-backdrop" *ngIf="showCatchModal && myRole === 'DETECTIVE' && gameStatus === 'PLAYING'">
       <div class="catch-modal-card">
-        <div class="siren-icon">🚨</div>
-        <h2 class="catch-title">MISTER X IN REICHWEITE!</h2>
+        <div class="target-lock-icon">
+          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <circle cx="12" cy="12" r="3" />
+            <line x1="12" y1="1" x2="12" y2="4" />
+            <line x1="12" y1="20" x2="12" y2="23" />
+            <line x1="1" y1="12" x2="4" y2="12" />
+            <line x1="20" y1="12" x2="23" y2="12" />
+          </svg>
+        </div>
+        <h2 class="catch-title">ZIELPERSON IN REICHWEITE</h2>
         <div class="catch-distance-box">
-          <span class="dist-num">{{ distanceToMisterX !== null ? distanceToMisterX : '≤10' }}</span>
-          <span class="dist-unit">Meter Abstand</span>
+          <span class="dist-num">{{ distanceToMisterX !== null ? distanceToMisterX : '≤' + settings.catchRadiusMeters }}</span>
+          <span class="dist-unit">METER DISTANZ</span>
         </div>
         <p class="catch-desc">
-          Mister X ist weniger als 10 Meter von dir entfernt! Greif sofort zu, bevor er flieht!
+          Mister X befindet sich in unmittelbarer Nähe. Jetzt Zugriff bestätigen, um die Runde zu beenden.
         </p>
-        <button class="catch-huge-btn" (click)="catchMisterX()">
-          <span class="catch-btn-icon">⚡</span>
-          <span>JETZT VERHAFTEN!</span>
+        <button class="mx-btn btn-primary btn-large catch-confirm-btn" (click)="catchMisterX()">
+          <span>JETZT ZUGRIFF AUSFÜHREN</span>
         </button>
         <button class="catch-dismiss-btn" (click)="dismissCatchModal()">
-          ✕ Karte kurz ansehen
+          Karte weiter betrachten
         </button>
       </div>
     </div>
@@ -418,14 +756,26 @@
 
     <!-- PING HISTORY DRAWER -->
     <div class="drawer ping-drawer" *ngIf="showPingHistory">
+      <div class="drawer-handle"></div>
       <div class="drawer-header">
-        <h4>📜 Ping-Historie ({{ pings.length }})</h4>
-        <button class="close-btn" (click)="closeAllDrawers()">✕</button>
+        <div class="drawer-title-group">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <polyline points="12 7 12 12 15 15" />
+          </svg>
+          <h4>Ping-Protokoll ({{ pings.length }})</h4>
+        </div>
+        <button class="close-btn" (click)="closeAllDrawers()" aria-label="Schliessen">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
       </div>
       <div class="drawer-content">
         <div class="empty-hint" *ngIf="pings.length === 0">
-          <span>📡 Noch keine Pings erfolgt.</span>
-          <small>Mister X wird alle {{ settings.pingIntervalSeconds / 60 }} Min. automatisch geortet.</small>
+          <span>Noch keine Ortungen verzeichnet</span>
+          <small>Mister X sendet alle {{ settings.pingIntervalSeconds / 60 }} Min. ein Standort-Signal.</small>
         </div>
         <div class="ping-item" *ngFor="let p of pings" (click)="centerOnPing(p)">
           <span class="ping-num">#{{ p.pingNumber }}</span>
@@ -433,25 +783,58 @@
             <strong>{{ p.timestamp | date:'HH:mm:ss' }} Uhr</strong>
             <span class="ping-coords">{{ p.lat | number:'1.4-4' }}, {{ p.lng | number:'1.4-4' }}</span>
           </div>
-          <span class="ping-action-badge">📍 Auf Karte</span>
+          <span class="ping-action-badge">
+            <span>Zeigen</span>
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </span>
         </div>
       </div>
     </div>
 
     <!-- PLAYER LIST DRAWER -->
     <div class="drawer player-drawer" *ngIf="showPlayerListDrawer">
+      <div class="drawer-handle"></div>
       <div class="drawer-header">
-        <h4>👥 Spieler & Rollen ({{ players.length }})</h4>
-        <button class="close-btn" (click)="closeAllDrawers()">✕</button>
+        <div class="drawer-title-group">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+          <h4>Aktive Einheiten ({{ players.length }})</h4>
+        </div>
+        <button class="close-btn" (click)="closeAllDrawers()" aria-label="Schliessen">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
       </div>
       <div class="drawer-content">
         <div class="player-drawer-item" *ngFor="let p of players">
-          <span class="p-icon">{{ p.role === 'MISTER_X' ? '🎩' : '🕵️' }}</span>
+          <div class="p-icon-box" [class.is-x]="p.role === 'MISTER_X'">
+            <svg *ngIf="p.role === 'MISTER_X'" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 11h18" />
+              <path d="M5 11l2-6h10l2 6" />
+              <circle cx="8.5" cy="16.5" r="2.5" />
+              <circle cx="15.5" cy="16.5" r="2.5" />
+              <path d="M11 16.5h2" />
+            </svg>
+            <svg *ngIf="p.role !== 'MISTER_X'" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </div>
           <div class="p-info">
-            <strong>{{ p.name }} {{ p.id === playerId ? '(Du)' : '' }}</strong>
+            <div class="p-name-row">
+              <strong>{{ p.name }}</strong>
+              <span *ngIf="p.id === playerId" class="you-tag">DU</span>
+            </div>
             <span class="p-sub">
-              {{ p.role === 'MISTER_X' ? (myRole === 'MISTER_X' ? 'Mister X' : 'Mister X (Geheim)') : 'Detektiv' }}
-              <span *ngIf="p.isOutOfBounds" class="out-warning"> • Außerhalb der Zone!</span>
+              {{ p.role === 'MISTER_X' ? 'Mister X' : 'Detektiv' }}
+              <span *ngIf="p.isOutOfBounds" class="out-warning"> • Ausserhalb der Zone</span>
             </span>
           </div>
         </div>
@@ -461,31 +844,37 @@
     <!-- GAME OVER / CAUGHT MODAL -->
     <div class="modal-backdrop" *ngIf="gameStatus === 'CAUGHT'">
       <div class="modal-card victory-card">
-        <div class="victory-icon">🏆 🚨</div>
-        <h2>MISTER X WURDE GEFANGEN!</h2>
-        <p class="victory-sub">Erfolgreich gestellt von <strong>{{ misterXCaughtBy }}</strong>!</p>
+        <div class="victory-icon">
+          <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+        </div>
+        <div class="modal-kicker">EINSATZ ABGESCHLOSSEN</div>
+        <h2>MISTER X GESTELLT</h2>
+        <p class="victory-sub">Erfolgreicher Zugriff durch <strong>{{ misterXCaughtBy }}</strong>.</p>
 
         <div class="game-stats-box">
           <div class="stat-col">
             <span class="stat-num">{{ pings.length }}</span>
-            <span class="stat-lbl">Pings gesendet</span>
+            <span class="stat-lbl">PINGS</span>
           </div>
           <div class="stat-col">
             <span class="stat-num">{{ players.length }}</span>
-            <span class="stat-lbl">Spieler</span>
+            <span class="stat-lbl">SPIELER</span>
           </div>
           <div class="stat-col">
             <span class="stat-num">{{ settings.radiusMeters }}m</span>
-            <span class="stat-lbl">Zone</span>
+            <span class="stat-lbl">RADIUS</span>
           </div>
         </div>
 
         <div class="modal-actions" *ngIf="isHost">
-          <button class="mx-btn btn-primary" (click)="restartGame()">
-            🔄 Neue Runde in der Lobby starten
+          <button class="mx-btn btn-primary btn-full" (click)="restartGame()">
+            <span>Zurück in die Lobby</span>
           </button>
         </div>
-        <p *ngIf="!isHost" class="wait-host-text">Der Host kann eine neue Runde starten...</p>
+        <p *ngIf="!isHost" class="wait-host-text">Warte auf den Host für die nächste Runde...</p>
       </div>
     </div>
 
@@ -494,16 +883,18 @@
   <!-- QR CODE MODAL -->
   <div class="modal-backdrop" *ngIf="showQrModal" (click)="showQrModal = false">
     <div class="modal-card qr-card" (click)="$event.stopPropagation()">
-      <h3>📱 Mit Handy scannen</h3>
-      <p>Öffne die Kamera auf dem Smartphone und scanne diesen QR-Code, um der Runde sofort beizutreten:</p>
+      <div class="modal-kicker">DIREKTBEITRITT</div>
+      <h3>QR-Code scannen</h3>
+      <p>Kamera öffnen und Code scannen, um dieser Lobby direkt beizutreten.</p>
       <div class="qr-image-wrapper" *ngIf="qrCodeDataUrl">
         <img [src]="qrCodeDataUrl" alt="QR-Code zum Beitreten" />
       </div>
       <div class="qr-code-text">
-        <span>Lobby Code: <strong>{{ roomCode }}</strong></span>
+        <span>CODE</span>
+        <strong>{{ roomCode }}</strong>
       </div>
-      <button class="mx-btn btn-secondary" (click)="showQrModal = false">
-        Schließen
+      <button class="mx-btn btn-secondary btn-full" (click)="showQrModal = false">
+        <span>Schliessen</span>
       </button>
     </div>
   </div>

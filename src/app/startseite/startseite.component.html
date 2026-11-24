@@ -30,13 +30,27 @@
   <!-- Reallife Mister X Game Card -->
   <div class="misterx-promo-box div_background">
     <div class="misterx-promo-header">
-      <span class="misterx-promo-icon">🎩 ⚡ 🕵️</span>
+      <span class="misterx-promo-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 11h20" />
+          <path d="M5 11l2.2-6.5a1.5 1.5 0 0 1 1.9-.9L12 4.5l2.9-.9a1.5 1.5 0 0 1 1.9.9L19 11" />
+          <circle cx="8.5" cy="16.5" r="2.75" />
+          <circle cx="15.5" cy="16.5" r="2.75" />
+          <path d="M11.25 16.5h1.5" />
+        </svg>
+      </span>
       <div class="misterx-promo-title">
-        <h3>Reallife Mister X</h3>
-        <p>Echte GPS-Verfolgungsjagd draußen in der Stadt mit Lobbys & Live-Radar!</p>
+        <h3>MISTER X</h3>
+        <p>Taktische Real-Life GPS-Verfolgungsjagd mit Lobbys &amp; Live-Radar</p>
       </div>
     </div>
-    <a routerLink="/misterx" class="misterx-promo-btn">🎮 Spiel starten (/misterx) →</a>
+    <a routerLink="/misterx" class="misterx-promo-btn">
+      <span>Operation starten</span>
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12" />
+        <polyline points="12 5 19 12 12 19" />
+      </svg>
+    </a>
   </div>
 
   <div id="place_holder"></div>

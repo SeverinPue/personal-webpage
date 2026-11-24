@@ -409,11 +409,15 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   public generateQrCode() {
-    QRCode.toDataURL(this.getShareUrl(), { width: 260, margin: 1 }, (err, url) => {
-      if (!err) {
-        this.qrCodeDataUrl = url;
+    QRCode.toDataURL(
+      this.getShareUrl(),
+      { width: 260, margin: 2, color: { dark: '#000000', light: '#ffffff' } },
+      (err, url) => {
+        if (!err) {
+          this.qrCodeDataUrl = url;
+        }
       }
-    });
+    );
   }
 
   // --- HOST SETTINGS & LOBBY MAP ---
@@ -434,19 +438,19 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.lobbyBoundaryCircle = L.circle([this.settings.centerLat, this.settings.centerLng], {
       radius: this.settings.radiusMeters,
-      color: '#bd4913',
-      fillColor: '#bd4913',
-      fillOpacity: 0.15,
-      weight: 3,
-      dashArray: '6, 6'
+      color: '#09090b',
+      fillColor: '#09090b',
+      fillOpacity: 0.1,
+      weight: 2.5,
+      dashArray: '8, 6'
     }).addTo(this.lobbyMap);
 
-    // Center pin icon
+    // Center pin icon (monochrome target bullseye)
     const centerIcon = L.divIcon({
       className: 'mx-center-marker',
-      html: `<div style="background:#bd4913; width:16px; height:16px; border-radius:50%; border:3px solid white; box-shadow:0 0 8px rgba(0,0,0,0.5);"></div>`,
-      iconSize: [16, 16],
-      iconAnchor: [8, 8]
+      html: `<div class="mx-center-pin"><div class="mx-center-dot"></div></div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
     });
 
     this.lobbyCenterMarker = L.marker([this.settings.centerLat, this.settings.centerLng], {
@@ -580,7 +584,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
       navigator.vibrate([300, 150, 300, 150, 500]);
     }
     this.requestWakeLock();
-    this.showToast(`Spiel gestartet! Du bist: ${this.myRole === 'MISTER_X' ? '🎩 MISTER X' : '🕵️ DETEKTIV'}`);
+    this.showToast(`Spiel gestartet — Rolle: ${this.myRole === 'MISTER_X' ? 'MISTER X' : 'DETEKTIV'}`);
 
     this.nextPingTimestamp = nextPingTimestamp;
     this.startPingTimer();
@@ -632,28 +636,28 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.initTouchRotation();
 
-    // Dark/tactical styled tiles or standard OpenStreetMap
+    // Classic street map tiles
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    // Boundary zone circle
+    // Monochrome boundary zone circle
     this.boundaryCircle = L.circle(center, {
       radius: this.settings.radiusMeters,
-      color: '#094456',
-      fillColor: '#31636b',
-      fillOpacity: 0.1,
-      weight: 3,
-      dashArray: '8, 8'
+      color: '#09090b',
+      fillColor: '#09090b',
+      fillOpacity: 0.07,
+      weight: 2.5,
+      dashArray: '8, 6'
     }).addTo(map);
 
-    // Breadcrumb trail polyline for Mister X's past pings
+    // Monochrome breadcrumb trail polyline for Mister X's past pings
     this.pingTrailPolyline = L.polyline([], {
-      color: '#e74c3c',
+      color: '#09090b',
       weight: 3,
-      opacity: 0.7,
-      dashArray: '4, 8'
+      opacity: 0.85,
+      dashArray: '6, 8'
     }).addTo(map);
 
     // Clean up stale markers and render all current player markers immediately
@@ -887,7 +891,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Audio & vibration alert!
     this.audio.playPingSound();
-    this.showToast(`🚨 PING #${record.pingNumber}: Mister X wurde geortet!`);
+    this.showToast(`PING #${record.pingNumber} — Mister X geortet`);
 
     // Add marker on Leaflet map
     this.addPingMarkerToMap(record);
@@ -901,7 +905,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   private addPingMarkerToMap(record: PingRecord) {
     if (!this.gameMap) return;
 
-    // Stylized Sonar Ping marker
+    // Stylized Monochrome Sonar Ping marker
     const pingHtml = `
       <div class="sonar-ping-marker">
         <div class="sonar-ring"></div>
@@ -913,13 +917,13 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     const icon = L.divIcon({
       className: 'mx-ping-div-icon',
       html: pingHtml,
-      iconSize: [40, 40],
-      iconAnchor: [20, 20]
+      iconSize: [44, 44],
+      iconAnchor: [22, 22]
     });
 
     const marker = L.marker([record.lat, record.lng], { icon })
       .addTo(this.gameMap)
-      .bindPopup(`<b>Ping #${record.pingNumber}</b><br>${new Date(record.timestamp).toLocaleTimeString()}`);
+      .bindPopup(`<strong>PING #${record.pingNumber}</strong><br>${new Date(record.timestamp).toLocaleTimeString()}`);
 
     this.pingMarkers.push(marker);
 
@@ -965,7 +969,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   public dismissCatchModal() {
     this.showCatchModal = false;
     this.catchModalDismissed = true;
-    this.showToast('Popup minimiert. Fang-Button bleibt aktiv!');
+    this.showToast('Popup minimiert — Zugriff-Button bleibt aktiv');
   }
 
   public openCatchModal() {
@@ -977,7 +981,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   public catchMisterX() {
     const maxRadius = this.settings.catchRadiusMeters || 10;
     if (!this.canCatchMisterX && this.distanceToMisterX !== null && this.distanceToMisterX > maxRadius) {
-      this.showToast(`Zu weit entfernt (${this.distanceToMisterX}m)! Du musst innerhalb von ${maxRadius}m sein.`);
+      this.showToast(`Distanz zu gross (${this.distanceToMisterX}m) — Maximal ${maxRadius}m erforderlich`);
       return;
     }
 
@@ -1005,7 +1009,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.catchModalDismissed = false;
     this.audio.playCatchSound();
     this.stopPingTimer();
-    this.showToast(`🎉 GEFANGEN! Mister X wurde von ${catcherName} geschnappt!`);
+    this.showToast(`ZUGRIFF ERFOLGREICH — Mister X gestellt von ${catcherName}`);
   }
 
   public restartGame() {
@@ -1271,6 +1275,16 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  private escapeHtml(str: string): string {
+    return (str || '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[c] || c));
+  }
+
   private updatePlayerMapMarker(player: Player) {
     if (!this.gameMap || player.lat === undefined || player.lng === undefined) return;
 
@@ -1290,14 +1304,18 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     let marker = this.playerMarkers.get(player.id);
     const latlng: L.LatLngTuple = [player.lat, player.lng];
 
-    const color = isMisterX ? '#e74c3c' : (isMe ? '#0284c7' : '#10b981');
-    const roleIcon = isMisterX ? '🎩' : '🕵️';
-    const label = isMe ? `${player.name} (Du)` : (isMisterX ? player.name : `${player.name} (Detektiv)`);
+    const incognitoSvg = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18"/><path d="M5 11l2-6h10l2 6"/><circle cx="8.5" cy="16.5" r="2.5"/><circle cx="15.5" cy="16.5" r="2.5"/><path d="M11 16.5h2"/></svg>`;
+    const navSelfSvg = `<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 19 21 12 17 5 21 12 2"/></svg>`;
+    const shieldSvg = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
+
+    const roleSvg = isMisterX ? incognitoSvg : (isMe ? navSelfSvg : shieldSvg);
+    const safeName = this.escapeHtml(player.name);
+    const label = isMe ? `${safeName} • DU` : (isMisterX ? `${safeName} • X` : safeName);
 
     const html = `
       <div class="player-custom-marker ${isMe ? 'is-me' : ''} ${isMisterX ? 'is-misterx' : 'is-detective'}">
-        <div class="marker-badge" style="background:${color};">
-          <span class="marker-icon">${roleIcon}</span>
+        <div class="marker-badge">
+          <span class="marker-icon">${roleSvg}</span>
         </div>
         <div class="marker-label">${label}</div>
       </div>
@@ -1306,8 +1324,8 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     const icon = L.divIcon({
       className: 'mx-custom-player-icon',
       html: html,
-      iconSize: [60, 52],
-      iconAnchor: [30, 42]
+      iconSize: [72, 56],
+      iconAnchor: [36, 42]
     });
 
     if (!marker) {
@@ -1324,7 +1342,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   public toggleSimulationMode() {
     this.simulationMode = !this.simulationMode;
     if (this.simulationMode) {
-      this.showToast('Test-Modus aktiviert: Klicke auf die Karte, um dich zu bewegen!');
+      this.showToast('Test-Modus aktiv — Klicke auf die Karte zum Bewegen');
       if (this.gameMap) {
         this.gameMap.on('click', (e: L.LeafletMouseEvent) => {
           if (this.simulationMode) {
@@ -1333,7 +1351,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
         });
       }
     } else {
-      this.showToast('Test-Modus deaktiviert. Nutze wieder echtes GPS.');
+      this.showToast('Test-Modus beendet — Echtes GPS aktiv');
     }
   }
 
@@ -1462,9 +1480,9 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (notify) {
       if (this.mapBearing === 0) {
-        this.showToast('🧭 Karte nach Norden ausgerichtet');
+        this.showToast('Karte nach Norden ausgerichtet (0°)');
       } else {
-        this.showToast(`🧭 Ausrichtung: ${this.mapBearing}°`);
+        this.showToast(`Ausrichtung: ${this.mapBearing}°`);
       }
     }
   }
