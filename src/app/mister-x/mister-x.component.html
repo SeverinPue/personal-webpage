@@ -227,6 +227,22 @@
             {{ isHost ? 'Tippe auf die Karte oder verschiebe die Zielmarkierung, um das Zentrum zu setzen.' : 'Der Host konfiguriert aktuell den Einsatzbereich.' }}
           </p>
 
+          <!-- Map Style Selector (swisstopo default) -->
+          <div class="map-style-bar">
+            <button type="button" [class.active]="mapStyle === 'SWISSTOPO_COLOR'" (click)="setMapStyle('SWISSTOPO_COLOR')">
+              swisstopo
+            </button>
+            <button type="button" [class.active]="mapStyle === 'SWISSTOPO_GREY'" (click)="setMapStyle('SWISSTOPO_GREY')">
+              swisstopo S/W
+            </button>
+            <button type="button" [class.active]="mapStyle === 'SWISSTOPO_AERIAL'" (click)="setMapStyle('SWISSTOPO_AERIAL')">
+              Luftbild
+            </button>
+            <button type="button" [class.active]="mapStyle === 'OSM'" (click)="setMapStyle('OSM')">
+              OSM
+            </button>
+          </div>
+
           <!-- Interactive preview map -->
           <div class="lobby-map-wrapper">
             <div #lobbyMapContainer class="leaflet-lobby-map"></div>
@@ -521,6 +537,21 @@
           <span class="hud-badge">{{ players.length }}</span>
         </button>
 
+        <!-- Map Layer Switcher (swisstopo / Luftbild / OSM) -->
+        <button
+          class="hud-btn"
+          [class.active]="showMapStylePicker"
+          (click)="toggleMapStylePicker()"
+          title="Kartenansicht wechseln (swisstopo / Luftbild / OSM)"
+          aria-label="Kartenansicht wechseln"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 2 7 12 12 22 7 12 2" />
+            <polyline points="2 17 12 22 22 17" />
+            <polyline points="2 12 12 17 22 12" />
+          </svg>
+        </button>
+
         <!-- Admin Abort Game Button (Host Only) -->
         <button
           class="hud-btn hud-abort-btn"
@@ -538,6 +569,22 @@
         </button>
       </div>
     </header>
+
+    <!-- FLOATING MAP LAYER PICKER (swisstopo Landeskarte, S/W, Luftbild, OSM) -->
+    <div class="hud-map-style-popover" *ngIf="showMapStylePicker">
+      <button type="button" [class.active]="mapStyle === 'SWISSTOPO_COLOR'" (click)="setMapStyle('SWISSTOPO_COLOR')">
+        swisstopo
+      </button>
+      <button type="button" [class.active]="mapStyle === 'SWISSTOPO_GREY'" (click)="setMapStyle('SWISSTOPO_GREY')">
+        swisstopo S/W
+      </button>
+      <button type="button" [class.active]="mapStyle === 'SWISSTOPO_AERIAL'" (click)="setMapStyle('SWISSTOPO_AERIAL')">
+        Luftbild
+      </button>
+      <button type="button" [class.active]="mapStyle === 'OSM'" (click)="setMapStyle('OSM')">
+        OSM
+      </button>
+    </div>
 
     <!-- MAIN LEAFLET MAP -->
     <div class="game-map-container" [class.is-drawing-mode]="myRole === 'DETECTIVE' && activeTacticalTool !== 'NONE'">

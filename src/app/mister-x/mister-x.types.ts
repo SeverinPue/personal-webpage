@@ -2,6 +2,8 @@ export type Role = 'MISTER_X' | 'DETECTIVE' | 'UNASSIGNED';
 
 export type GameStatus = 'LOBBY' | 'PLAYING' | 'CAUGHT' | 'ESCAPED' | 'ENDED';
 
+export type MapStyle = 'SWISSTOPO_COLOR' | 'SWISSTOPO_GREY' | 'SWISSTOPO_AERIAL' | 'OSM';
+
 export type TacticalTool =
   | 'NONE'
   | 'GOING'

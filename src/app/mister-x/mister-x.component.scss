@@ -2694,4 +2694,64 @@
   }
 }
 
+/* ==========================================================================
+   SWISSTOPO MAP LAYER SWITCHER (LOBBY + IN-GAME HUD)
+   ========================================================================== */
+.map-style-bar,
+.hud-map-style-popover {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  background: #101014;
+  border: 1px solid var(--border-medium);
+  border-radius: 10px;
+  padding: 4px;
+
+  button {
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 7px 6px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: all 0.14s ease;
+    white-space: nowrap;
+
+    &:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    &.active {
+      background: #ffffff;
+      color: #000000;
+      border-color: #ffffff;
+      font-weight: 800;
+    }
+  }
+}
+
+.map-style-bar {
+  margin-bottom: 10px;
+}
+
+.hud-map-style-popover {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 64px);
+  right: 12px;
+  left: 12px;
+  max-width: 390px;
+  margin-left: auto;
+  z-index: 1250;
+  background: rgba(9, 9, 11, 0.96);
+  backdrop-filter: blur(16px);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.78);
+  animation: fadeIn 0.15s ease;
+}
+
+
 

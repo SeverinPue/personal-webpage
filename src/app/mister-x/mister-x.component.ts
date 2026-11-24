@@ -16,6 +16,7 @@ import {
   Player,
   Role,
   GameStatus,
+  MapStyle,
   GameSettings,
   PingRecord,
   GameEventMessage,
@@ -99,6 +100,8 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   public copySuccess = false;
   public showPingHistory = false;
   public showPlayerListDrawer = false;
+  public showMapStylePicker = false;
+  public mapStyle: MapStyle = 'SWISSTOPO_COLOR';
   public soundMuted = false;
   public notificationText = '';
   private notificationTimer: any = null;
@@ -127,6 +130,8 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   // Leaflet maps & layers
   private gameMap: L.Map | null = null;
   private lobbyMap: L.Map | null = null;
+  private gameTileLayer: L.TileLayer | null = null;
+  private lobbyTileLayer: L.TileLayer | null = null;
   private boundaryCircle: L.Circle | null = null;
   private lobbyBoundaryCircle: L.Circle | null = null;
   private lobbyCenterMarker: L.Marker | null = null;
@@ -158,6 +163,17 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     const storedName = localStorage.getItem('mx_player_name');
     if (storedName) {
       this.playerName = storedName;
+    }
+
+    // Restore preferred swisstopo / map style
+    const storedMapStyle = localStorage.getItem('mx_map_style') as MapStyle | null;
+    if (
+      storedMapStyle === 'SWISSTOPO_COLOR' ||
+      storedMapStyle === 'SWISSTOPO_GREY' ||
+      storedMapStyle === 'SWISSTOPO_AERIAL' ||
+      storedMapStyle === 'OSM'
+    ) {
+      this.mapStyle = storedMapStyle;
     }
 
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
@@ -454,6 +470,102 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     );
   }
 
+  // --- MAP LAYER SWITCHER (SWISSTOPO LANDESKARTE / GRAU / LUFTBILD / OSM) ---
+
+  private createBaseTileLayer(style: MapStyle): L.TileLayer {
+    switch (style) {
+      case 'SWISSTOPO_GREY':
+        return L.tileLayer(
+          'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-grau/default/current/3857/{z}/{x}/{y}.jpeg',
+          {
+            maxNativeZoom: 19,
+            maxZoom: 20,
+            attribution: '© swisstopo'
+          }
+        );
+      case 'SWISSTOPO_AERIAL':
+        return L.tileLayer(
+          'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg',
+          {
+            maxNativeZoom: 20,
+            maxZoom: 20,
+            attribution: '© swisstopo'
+          }
+        );
+      case 'OSM':
+        return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxNativeZoom: 19,
+          maxZoom: 20,
+          attribution: '© OpenStreetMap'
+        });
+      case 'SWISSTOPO_COLOR':
+      default:
+        return L.tileLayer(
+          'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.jpeg',
+          {
+            maxNativeZoom: 19,
+            maxZoom: 20,
+            attribution: '© swisstopo'
+          }
+        );
+    }
+  }
+
+  public toggleMapStylePicker() {
+    const next = !this.showMapStylePicker;
+    this.closeAllDrawers();
+    this.showMapStylePicker = next;
+  }
+
+  public setMapStyle(style: MapStyle) {
+    this.mapStyle = style;
+    this.showMapStylePicker = false;
+    localStorage.setItem('mx_map_style', style);
+
+    if (this.lobbyMap) {
+      if (this.lobbyTileLayer) {
+        this.lobbyTileLayer.remove();
+      }
+      this.lobbyTileLayer = this.createBaseTileLayer(style).addTo(this.lobbyMap);
+      this.lobbyTileLayer.bringToBack();
+    }
+
+    if (this.gameMap) {
+      if (this.gameTileLayer) {
+        this.gameTileLayer.remove();
+      }
+      this.gameTileLayer = this.createBaseTileLayer(style).addTo(this.gameMap);
+      this.gameTileLayer.bringToBack();
+    }
+
+    this.applyMapVectorContrast();
+  }
+
+  private applyMapVectorContrast() {
+    const isAerial = this.mapStyle === 'SWISSTOPO_AERIAL';
+    const strokeColor = isAerial ? '#ffffff' : '#09090b';
+
+    if (this.lobbyBoundaryCircle) {
+      this.lobbyBoundaryCircle.setStyle({
+        color: strokeColor,
+        fillColor: strokeColor,
+        fillOpacity: isAerial ? 0.08 : 0.1
+      });
+    }
+    if (this.boundaryCircle) {
+      this.boundaryCircle.setStyle({
+        color: strokeColor,
+        fillColor: strokeColor,
+        fillOpacity: isAerial ? 0.06 : 0.07
+      });
+    }
+    if (this.pingTrailPolyline) {
+      this.pingTrailPolyline.setStyle({
+        color: strokeColor
+      });
+    }
+  }
+
   // --- HOST SETTINGS & LOBBY MAP ---
 
   private initLobbyMap() {
@@ -462,19 +574,20 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.lobbyMap = L.map(this.lobbyMapContainer.nativeElement, {
       center: [this.settings.centerLat, this.settings.centerLng],
       zoom: 14,
+      maxZoom: 20,
       zoomControl: true
     });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap'
-    }).addTo(this.lobbyMap);
+    this.lobbyTileLayer = this.createBaseTileLayer(this.mapStyle).addTo(this.lobbyMap);
+
+    const isAerial = this.mapStyle === 'SWISSTOPO_AERIAL';
+    const strokeColor = isAerial ? '#ffffff' : '#09090b';
 
     this.lobbyBoundaryCircle = L.circle([this.settings.centerLat, this.settings.centerLng], {
       radius: this.settings.radiusMeters,
-      color: '#09090b',
-      fillColor: '#09090b',
-      fillOpacity: 0.1,
+      color: strokeColor,
+      fillColor: strokeColor,
+      fillOpacity: isAerial ? 0.08 : 0.1,
       weight: 2.5,
       dashArray: '8, 6'
     }).addTo(this.lobbyMap);
@@ -666,6 +779,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     const map = L_LIB.map(this.mapContainer.nativeElement, {
       center: center,
       zoom: 15,
+      maxZoom: 20,
       zoomControl: false,
       rotate: true,
       bearing: 0,
@@ -689,6 +803,10 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 
     map.on('click', (e: L.LeafletMouseEvent) => {
+      if (this.showMapStylePicker) {
+        this.showMapStylePicker = false;
+      }
+
       if (
         this.myRole === 'DETECTIVE' &&
         (this.activeTacticalTool === 'GOING' ||
@@ -709,26 +827,26 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.initTouchRotation();
     this.initTacticalDrawingEvents();
 
-    // Classic street map tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap'
-    }).addTo(map);
+    // swisstopo / selectable map tiles
+    this.gameTileLayer = this.createBaseTileLayer(this.mapStyle).addTo(map);
 
-    // Monochrome boundary zone circle
+    const isAerial = this.mapStyle === 'SWISSTOPO_AERIAL';
+    const strokeColor = isAerial ? '#ffffff' : '#09090b';
+
+    // Boundary zone circle
     this.boundaryCircle = L.circle(center, {
       radius: this.settings.radiusMeters,
-      color: '#09090b',
-      fillColor: '#09090b',
-      fillOpacity: 0.07,
+      color: strokeColor,
+      fillColor: strokeColor,
+      fillOpacity: isAerial ? 0.06 : 0.07,
       weight: 2.5,
       dashArray: '8, 6',
       interactive: false
     }).addTo(map);
 
-    // Monochrome breadcrumb trail polyline for Mister X's past pings
+    // Breadcrumb trail polyline for Mister X's past pings
     this.pingTrailPolyline = L.polyline([], {
-      color: '#09090b',
+      color: strokeColor,
       weight: 3,
       opacity: 0.85,
       dashArray: '6, 8',
@@ -2407,6 +2525,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showPingHistory = !this.showPingHistory;
     if (this.showPingHistory) {
       this.showPlayerListDrawer = false;
+      this.showMapStylePicker = false;
       this.closeTacticalBar();
     }
   }
@@ -2415,6 +2534,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showPlayerListDrawer = !this.showPlayerListDrawer;
     if (this.showPlayerListDrawer) {
       this.showPingHistory = false;
+      this.showMapStylePicker = false;
       this.closeTacticalBar();
     }
   }
@@ -2422,6 +2542,7 @@ export class MisterXComponent implements OnInit, AfterViewInit, OnDestroy {
   public closeAllDrawers() {
     this.showPingHistory = false;
     this.showPlayerListDrawer = false;
+    this.showMapStylePicker = false;
   }
 
   public centerOnPing(ping: PingRecord) {
